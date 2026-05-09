@@ -1,0 +1,12 @@
+/* src/index.css */
+@import "tailwindcss";
+
+/* Si en el futuro necesitas añadir fuentes personalizadas o 
+   configuraciones que antes iban en tailwind.config.js, 
+   ahora se hacen aquí mismo usando variables de CSS:
+   
+   @theme {
+     --font-sans: 'Inter', ui-sans-serif, system-ui;
+     --color-brand: #3b82f6;
+   }
+*/
