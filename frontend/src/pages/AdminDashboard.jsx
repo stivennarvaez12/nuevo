@@ -1,9 +1,13 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom'; // Para el logout
+import { useNavigate } from 'react-router-dom';
 import { 
   Wine, Plus, Search, Edit2, Trash2, Package, 
   AlertTriangle, TrendingUp, LogOut 
 } from 'lucide-react';
+
+// --- CONFIGURACIÓN DE LA URL ---
+// Si existe la variable en Vercel, la usa. Si no, usa tu IP local para cuando programes en casa.
+const API_URL = import.meta.env.VITE_API_URL || 'http://192.168.18.28:4000';
 
 export default function AdminDashboard() {
   const [products, setProducts] = useState([]);
@@ -13,12 +17,13 @@ export default function AdminDashboard() {
   // 1. Cargar productos desde el Backend
   const fetchProducts = async () => {
     try {
-      const response = await fetch('http://192.168.18.28:4000/productos'); 
-      if (!response.ok) throw new Error('Error al conectar');
+      // Usamos la constante dinámica API_URL
+      const response = await fetch(`${API_URL}/productos`); 
+      if (!response.ok) throw new Error('Error al conectar con el servidor');
       const data = await response.json();
       setProducts(data);
     } catch (error) {
-      console.error("Error:", error);
+      console.error("Error de conexión:", error);
     } finally {
       setLoading(false);
     }
@@ -28,30 +33,31 @@ export default function AdminDashboard() {
     fetchProducts();
   }, []);
 
-  // 2. Función para ELIMINAR (Conexión real a la DB)
+  // 2. Función para ELIMINAR
   const handleDelete = async (id, nombre) => {
     if (window.confirm(`¿Seguro que quieres eliminar "${nombre}"?`)) {
       try {
-        const response = await fetch(`http://192.168.18.28:4000/productos/${id}`, {
+        const response = await fetch(`${API_URL}/productos/${id}`, {
           method: 'DELETE',
         });
 
         if (response.ok) {
-          // Si el backend borró bien, actualizamos la lista sin recargar la página
           setProducts(products.filter(p => p.id !== id));
           alert("Producto eliminado correctamente");
+        } else {
+          alert("El servidor rechazó la eliminación");
         }
       } catch (error) {
-        alert("No se pudo eliminar el producto");
+        alert("No se pudo conectar con el servidor para eliminar");
       }
     }
   };
 
   // 3. Función para CERRAR SESIÓN
   const handleLogout = () => {
-    localStorage.removeItem('token'); // Borramos la llave
+    localStorage.removeItem('token');
     localStorage.removeItem('usuarioNombre');
-    navigate('/'); // Volvemos al inicio
+    navigate('/');
   };
 
   return (

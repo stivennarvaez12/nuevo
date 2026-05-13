@@ -14,9 +14,12 @@ export default function LoginModal({ isOpen, onClose }) {
     e.preventDefault();
     setError('');
 
+    // Definimos la URL de Render. 
+    // Usamos variable de entorno si existe, si no, la de Render directamente.
+    const API_URL = import.meta.env.VITE_API_URL || 'https://nuevo-98vm.onrender.com';
+
     try {
-      // Recuerda verificar que este sea tu puerto y ruta correctos
-      const response = await fetch('http://127.0.0.1:4000/api/auth/login', {
+      const response = await fetch(`${API_URL}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
@@ -37,13 +40,10 @@ export default function LoginModal({ isOpen, onClose }) {
   };
 
   return (
-    // bg-black/40 y backdrop-blur-md dan el desenfoque elegante sin ocultar totalmente el fondo
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-md transition-all">
       
-      {/* Contenedor del Modal - Efecto Glassmorphism */}
       <div className="relative w-full max-w-md bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 border border-white/20">
         
-        {/* Botón Cerrar */}
         <button 
           onClick={onClose}
           className="absolute top-4 right-4 text-gray-500 hover:text-black bg-gray-100/80 hover:bg-gray-200 p-2 rounded-full transition-colors"
