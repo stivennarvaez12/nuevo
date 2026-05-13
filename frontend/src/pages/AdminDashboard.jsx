@@ -6,8 +6,9 @@ import {
 } from 'lucide-react';
 
 // --- CONFIGURACIÓN DE LA URL ---
-// Si existe la variable en Vercel, la usa. Si no, usa tu IP local para cuando programes en casa.
-const API_URL = import.meta.env.VITE_API_URL || 'http://192.168.18.28:4000';
+const RAW_URL = import.meta.env.VITE_API_URL || 'http://192.168.18.28:4000';
+// Limpiamos la URL por si tiene una "/" al final para evitar errores de ruta
+const API_URL = RAW_URL.replace(/\/$/, "");
 
 export default function AdminDashboard() {
   const [products, setProducts] = useState([]);
@@ -17,13 +18,16 @@ export default function AdminDashboard() {
   // 1. Cargar productos desde el Backend
   const fetchProducts = async () => {
     try {
-      // Usamos la constante dinámica API_URL
+      setLoading(true);
+      console.log(`📡 Conectando a: ${API_URL}/productos`);
+      
       const response = await fetch(`${API_URL}/productos`); 
       if (!response.ok) throw new Error('Error al conectar con el servidor');
+      
       const data = await response.json();
       setProducts(data);
     } catch (error) {
-      console.error("Error de conexión:", error);
+      console.error("❌ Error de conexión:", error);
     } finally {
       setLoading(false);
     }
@@ -121,8 +125,10 @@ export default function AdminDashboard() {
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4">
             <div className="bg-green-100 p-3 rounded-xl text-green-600"><TrendingUp size={24}/></div>
             <div>
-              <p className="text-sm text-gray-500 font-bold uppercase tracking-wider">Estado</p>
-              <h3 className="text-2xl font-black text-green-600">Online</h3>
+              <p className="text-sm text-gray-500 font-bold uppercase tracking-wider">Estado Servidor</p>
+              <h3 className={`text-2xl font-black ${loading ? 'text-amber-500' : 'text-green-600'}`}>
+                {loading ? 'Sincronizando...' : 'En Línea'}
+              </h3>
             </div>
           </div>
         </section>
@@ -133,7 +139,7 @@ export default function AdminDashboard() {
             {loading ? (
               <div className="flex flex-col items-center justify-center h-64 gap-4 italic text-gray-400">
                 <div className="w-8 h-8 border-4 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
-                Cargando datos reales...
+                Conectando con la bodega en Aiven...
               </div>
             ) : (
               <table className="w-full text-left">
@@ -147,38 +153,46 @@ export default function AdminDashboard() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
-                  {products.map((product) => (
-                    <tr key={product.id} className="hover:bg-gray-50/50 transition-colors">
-                      <td className="px-6 py-4 font-bold text-gray-800">{product.nombre}</td>
-                      <td className="px-6 py-4">
-                        <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-bold uppercase">
-                          {product.categoria}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 font-bold text-gray-900">
-                        ${Number(product.precio).toLocaleString()}
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
-                          <span className={`w-2 h-2 rounded-full ${product.stock < 10 ? 'bg-red-500' : 'bg-green-500'}`}></span>
-                          <span className="font-bold">{product.stock} und.</span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex justify-center gap-2">
-                          <button className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg">
-                            <Edit2 size={18}/>
-                          </button>
-                          <button 
-                            onClick={() => handleDelete(product.id, product.nombre)}
-                            className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                          >
-                            <Trash2 size={18}/>
-                          </button>
-                        </div>
+                  {products.length === 0 ? (
+                    <tr>
+                      <td colSpan="5" className="px-6 py-10 text-center text-gray-400 italic">
+                        No hay productos registrados en la base de datos.
                       </td>
                     </tr>
-                  ))}
+                  ) : (
+                    products.map((product) => (
+                      <tr key={product.id} className="hover:bg-gray-50/50 transition-colors">
+                        <td className="px-6 py-4 font-bold text-gray-800">{product.nombre}</td>
+                        <td className="px-6 py-4">
+                          <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-bold uppercase">
+                            {product.categoria}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 font-bold text-gray-900">
+                          ${Number(product.precio).toLocaleString()}
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-2">
+                            <span className={`w-2 h-2 rounded-full ${product.stock < 10 ? 'bg-red-500' : 'bg-green-500'}`}></span>
+                            <span className="font-bold">{product.stock} und.</span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex justify-center gap-2">
+                            <button className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors">
+                              <Edit2 size={18}/>
+                            </button>
+                            <button 
+                              onClick={() => handleDelete(product.id, product.nombre)}
+                              className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                            >
+                              <Trash2 size={18}/>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             )}
