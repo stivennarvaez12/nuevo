@@ -120,6 +120,50 @@ app.delete('/productos/:id', (req, res) => {
 // ==========================================
 app.post('/api/ventas', (req, res) => {
     const { id_usuario, id_cliente, total_venta, carrito } = req.body;
+    // ==========================================
+// 3b. HISTORIAL DE VENTAS (NUEVOS ENDPOINTS)
+// ==========================================
+
+// 1. Obtener el listado general de ventas (para la tabla principal)
+app.get('/api/ventas', (req, res) => {
+    // Nota: Si tu columna de fecha en la base de datos se llama diferente (ej. fecha o creado_en), cambiala aquí.
+    const sql = `
+        SELECT 
+            v.id_venta AS id, 
+            v.total_venta AS total, 
+            v.fecha_venta AS fecha, 
+            u.nombre AS cajero, 
+            IFNULL(c.nombre, 'Cliente General') AS cliente
+        FROM ventas v
+        LEFT JOIN usuarios u ON v.id_usuario = u.id_usuario
+        LEFT JOIN clientes c ON v.id_cliente = c.id_cliente
+        ORDER BY v.id_venta DESC
+    `;
+
+    db.query(sql, (err, data) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(data);
+    });
+});
+
+// 2. Obtener el detalle específico de productos de una venta (para el Modal)
+app.get('/api/ventas/:id/detalle', (req, res) => {
+    const { id } = req.params;
+    const sql = `
+        SELECT 
+            dv.cantidad, 
+            dv.precio_unitario AS precio, 
+            p.nombre_producto AS nombre
+        FROM detalle_ventas dv
+        JOIN productos p ON dv.id_producto = p.id_producto
+        WHERE dv.id_venta = ?
+    `;
+
+    db.query(sql, [id], (err, data) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(data);
+    });
+});
     
     // Si por alguna razón no viene el id_cliente, se le asigna 1 por defecto (Cliente General)
     const clienteId = id_cliente || 1;
