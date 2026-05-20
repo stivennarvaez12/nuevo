@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Receipt, Calendar, Search, FileText, Eye, X, Package, User } from 'lucide-react';
+import { Receipt, Calendar, Search, FileText, Eye, X, Package, User, Printer, Share2, Mail } from 'lucide-react';
 
 export default function HistorialVentas() {
   const [ventas, setVentas] = useState([]);
@@ -12,7 +12,7 @@ export default function HistorialVentas() {
   const [loadingDetalle, setLoadingDetalle] = useState(false);
   const [showModal, setShowModal] = useState(false);
 
-  // 1. Cargar el historial general (Conectado a tu nuevo backend con JOINs)
+  // 1. Cargar el historial general
   useEffect(() => {
     const fetchVentas = async () => {
       try {
@@ -36,7 +36,6 @@ export default function HistorialVentas() {
     setShowModal(true);
     setLoadingDetalle(true);
     try {
-      // Ajustado a la nueva ruta de detalles del backend
       const response = await fetch(`http://192.168.18.28:4000/api/ventas/${venta.id}/detalle`);
       if (response.ok) {
         const data = await response.json();
@@ -49,7 +48,99 @@ export default function HistorialVentas() {
     }
   };
 
-  // Filtrar ventas por ID o por Nombre de Cliente (¡Ahora es más inteligente!)
+  // --- FUNCIONES DE COMPARTIR Y EMISIÓN ---
+
+  // 1. IMPRIMIR RECIBO (Formato Ticket Térmico)
+  const handleImprimir = () => {
+    const ventanaImpresion = window.open('', '_blank');
+    
+    const listaProductos = detalles.map(det => 
+      `${det.nombre.padEnd(20, ' ')} x${det.cantidad.toString().padStart(2, ' ')}  $${(det.cantidad * det.precio).toLocaleString('es-CO')}`
+    ).join('\n');
+
+    ventanaImpresion.document.write(`
+      <html>
+        <head>
+          <title>Recibo #${selectedVenta?.id}</title>
+          <style>
+            body { font-family: 'Courier New', Courier, monospace; width: 280px; font-size: 12px; margin: 0; padding: 10px; }
+            .text-center { text-align: center; }
+            .text-right { text-align: right; }
+            .linea { border-bottom: 1px dashed #000; margin: 8px 0; }
+            .total { font-size: 15px; font-weight: bold; }
+          </style>
+        </head>
+        <body>
+          <div class="text-center">
+            <strong>LICORES NICOLE</strong><br>
+            ¡Tu licorera de confianza!<br>
+            Recibo: #${selectedVenta?.id.toString().padStart(5, '0')}<br>
+            Fecha: ${formatearFecha(selectedVenta?.fecha)}<br>
+          </div>
+          <div class="linea"></div>
+          <div>Cajero: ${selectedVenta?.cajero || 'Sistema'}</div>
+          <div>Cliente: ${selectedVenta?.cliente}</div>
+          <div class="linea"></div>
+          <pre style="margin:0; font-family:inherit;">${listaProductos}</pre>
+          <div class="linea"></div>
+          <div class="text-right total">TOTAL: $${Number(selectedVenta?.total).toLocaleString('es-CO')}</div>
+          <div class="linea"></div>
+          <div class="text-center" style="margin-top:15px;">¡Gracias por tu compra!</div>
+        </body>
+      </html>
+    `);
+    
+    ventanaImpresion.document.close();
+    ventanaImpresion.print();
+    ventanaImpresion.close();
+  };
+
+  // 2. COMPARTIR POR WHATSAPP
+  const handleWhatsApp = () => {
+    let mensaje = `*LICORES NICOLE* 🍾\n`;
+    mensaje += `*Detalle de tu Compra* 🧾\n`;
+    mensaje += `---------------------------\n`;
+    mensaje += `*Recibo:* #${selectedVenta?.id.toString().padStart(5, '0')}\n`;
+    mensaje += `*Fecha:* ${formatearFecha(selectedVenta?.fecha)}\n`;
+    mensaje += `*Cliente:* ${selectedVenta?.cliente}\n`;
+    mensaje += `---------------------------\n`;
+    
+    detalles.forEach(det => {
+      mensaje += `• ${det.nombre} (x${det.cantidad}) - $${(det.cantidad * det.precio).toLocaleString('es-CO')}\n`;
+    });
+    
+    mensaje += `---------------------------\n`;
+    mensaje += `*TOTAL PAGADO:* $${Number(selectedVenta?.total).toLocaleString('es-CO')}\n\n`;
+    mensaje += `¡Muchas gracias por elegirnos! 🙌`;
+
+    const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(mensaje)}`;
+    window.open(url, '_blank');
+  };
+
+  // 3. ENVIAR POR CORREO ELECTRONICO
+  const handleCorreo = () => {
+    const asunto = encodeURIComponent(`Recibo de Compra #${selectedVenta?.id.toString().padStart(5, '0')} - Licores Nicole`);
+    
+    let cuerpo = `Hola ${selectedVenta?.cliente},\n\n`;
+    cuerpo += `Adjuntamos el resumen de tu compra realizada en Licores Nicole:\n\n`;
+    cuerpo += `N° Recibo: #${selectedVenta?.id.toString().padStart(5, '0')}\n`;
+    cuerpo += `Fecha: ${formatearFecha(selectedVenta?.fecha)}\n`;
+    cuerpo += `Atendido por: ${selectedVenta?.cajero || 'Sistema'}\n`;
+    cuerpo += `=====================================\n`;
+    
+    detalles.forEach(det => {
+      cuerpo += `${det.nombre} x${det.cantidad} -- $${(det.cantidad * det.precio).toLocaleString('es-CO')}\n`;
+    });
+    
+    cuerpo += `=====================================\n`;
+    cuerpo += `TOTAL NETO: $${Number(selectedVenta?.total).toLocaleString('es-CO')}\n\n`;
+    cuerpo += `¡Gracias por visitarnos!\nLicores Nicole`;
+
+    window.location.href = `mailto:?subject=${asunto}&body=${encodeURIComponent(cuerpo)}`;
+  };
+
+
+  // Filtrar ventas por ID o por Nombre de Cliente
   const ventasFiltradas = ventas.filter(v => 
     v.id.toString().includes(searchTerm) || 
     v.cliente.toLowerCase().includes(searchTerm.toLowerCase())
@@ -131,12 +222,10 @@ export default function HistorialVentas() {
                       <Calendar size={16} className="text-gray-400" />
                       {formatearFecha(venta.fecha)}
                     </td>
-                    {/* ¡NUEVA COLUMNA DE CLIENTE! */}
                     <td className="p-4 text-gray-900 font-bold text-sm">
                       {venta.cliente}
                     </td>
-                    {/* ¡MUESTRA EL NOMBRE DEL CAJERO EN VEZ DEL ID ANÓNIMO! */}
-                    <td className="p-4 text-gray-600 text-sm font-medium flex items-center gap-1 mt-1.5">
+                    <td className="p-4 text-gray-600 text-sm font-medium flex items-center gap-1">
                       <User size={14} className="text-gray-400" /> {venta.cajero || 'Sistema'}
                     </td>
                     <td className="p-4 font-black text-emerald-600 text-right text-lg">
@@ -222,6 +311,32 @@ export default function HistorialVentas() {
                       ${Number(selectedVenta?.total).toLocaleString('es-CO')}
                     </span>
                   </div>
+
+                  {/* ¡NUEVA SECCIÓN DE ACCIONES DE COMPARTIR/IMPRIMIR! */}
+                  <div className="grid grid-cols-3 gap-2 pt-4 border-t border-gray-100">
+                    <button
+                      onClick={handleImprimir}
+                      className="flex flex-col items-center justify-center p-3 rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors text-gray-700 gap-1"
+                    >
+                      <Printer size={20} className="text-blue-600" />
+                      <span className="text-xs font-bold">Imprimir</span>
+                    </button>
+                    <button
+                      onClick={handleWhatsApp}
+                      className="flex flex-col items-center justify-center p-3 rounded-xl border border-gray-200 hover:bg-emerald-50 transition-colors text-gray-700 gap-1"
+                    >
+                      <Share2 size={20} className="text-emerald-600" />
+                      <span className="text-xs font-bold">WhatsApp</span>
+                    </button>
+                    <button
+                      onClick={handleCorreo}
+                      className="flex flex-col items-center justify-center p-3 rounded-xl border border-gray-200 hover:bg-amber-50 transition-colors text-gray-700 gap-1"
+                    >
+                      <Mail size={20} className="text-amber-600" />
+                      <span className="text-xs font-bold">Correo</span>
+                    </button>
+                  </div>
+
                 </div>
               )}
             </div>
