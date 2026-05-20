@@ -1,13 +1,17 @@
+import { useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   Wine, Users, ShieldCheck, 
   UserCircle, ShoppingCart, TrendingDown, LayoutDashboard, LogOut,
-  Receipt, Package, PackageCheck
+  Receipt, Package, PackageCheck, Menu, X
 } from 'lucide-react';
 
 export default function DashboardLayout() {
   const location = useLocation();
   const navigate = useNavigate();
+  
+  // ESTADO MÁGICO: Controla si el menú está abierto en celulares
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -21,7 +25,6 @@ export default function DashboardLayout() {
     { path: '/dashboard/ventas', icon: <ShoppingCart size={20}/>, label: 'Ventas' },
     { path: '/dashboard/historial', icon: <Receipt size={20}/>, label: 'Historial Ventas' },
     { path: '/dashboard/compras', icon: <Package size={20}/>, label: 'Compras' },
-    // ¡NUEVO BOTÓN DE HISTORIAL DE COMPRAS!
     { path: '/dashboard/historial-compras', icon: <PackageCheck size={20}/>, label: 'Historial Compras' },
     { path: '/dashboard/gastos', icon: <TrendingDown size={20}/>, label: 'Gastos' },
     { path: '/dashboard/clientes', icon: <Users size={20}/>, label: 'Clientes' },
@@ -30,15 +33,51 @@ export default function DashboardLayout() {
   ];
 
   return (
-    <div className="flex h-screen bg-gray-50">
-      <aside className="w-64 bg-white border-r border-gray-200 flex flex-col">
-        <div className="p-6 flex items-center gap-3 border-b border-gray-100">
-          <div className="bg-black p-2 rounded-lg">
-            <Wine className="text-white w-5 h-5" />
+    <div className="flex flex-col md:flex-row h-screen bg-gray-50 overflow-hidden">
+      
+      {/* 1. BARRA SUPERIOR PARA CELULARES (Se oculta en computadoras con md:hidden) */}
+      <header className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between md:hidden shrink-0 z-40">
+        <div className="flex items-center gap-2.5">
+          <div className="bg-black p-1.5 rounded-lg">
+            <Wine className="text-white w-4 h-4" />
           </div>
-          <span className="font-bold text-xl tracking-tight">Licores Nicole</span>
+          <span className="font-black text-lg tracking-tight text-gray-900">Licores Nicole</span>
         </div>
         
+        {/* Botón interactivo para abrir el menú */}
+        <button 
+          onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+          className="p-2 text-gray-600 hover:text-black hover:bg-gray-100 rounded-xl transition-colors"
+        >
+          {isSidebarOpen ? <X size={24} /> : <Menu size={24} />}
+        </button>
+      </header>
+
+      {/* 2. MENÚ LATERAL (SIDEBAR) ADAPTABLE */}
+      {/* Las clases `fixed` e `inset-y-0` lo vuelven flotante en celular; `md:static` lo vuelve fijo en PC */}
+      <aside className={`
+        fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-gray-200 flex flex-col transform transition-transform duration-300 ease-in-out
+        md:static md:translate-x-0
+        ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+      `}>
+        
+        {/* Cabecera del menú lateral (Con botón de cerrar solo visible en celular) */}
+        <div className="p-5 flex items-center justify-between border-b border-gray-100 shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="bg-black p-2 rounded-lg">
+              <Wine className="text-white w-5 h-5" />
+            </div>
+            <span className="font-black text-xl tracking-tight text-gray-900">Licores Nicole</span>
+          </div>
+          <button 
+            onClick={() => setIsSidebarOpen(false)}
+            className="md:hidden p-1.5 hover:bg-gray-100 rounded-lg text-gray-500"
+          >
+            <X size={20} />
+          </button>
+        </div>
+        
+        {/* Cuerpo de navegación scrollable */}
         <nav className="flex-1 overflow-y-auto py-4 custom-scrollbar">
           <ul className="space-y-1 px-3">
             {menuItems.map((item) => {
@@ -47,9 +86,11 @@ export default function DashboardLayout() {
                 <li key={item.path}>
                   <Link
                     to={item.path}
-                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors text-sm font-medium ${
+                    // Al dar clic en un enlace en el celular, cerramos el menú automáticamente
+                    onClick={() => setIsSidebarOpen(false)}
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors text-sm font-semibold ${
                       isActive 
-                        ? 'bg-gray-100 text-black' 
+                        ? 'bg-gray-900 text-white shadow-md shadow-gray-900/10' 
                         : 'text-gray-600 hover:bg-gray-50 hover:text-black'
                     }`}
                   >
@@ -62,10 +103,11 @@ export default function DashboardLayout() {
           </ul>
         </nav>
         
-        <div className="p-4 border-t border-gray-100">
+        {/* Botón de Cerrar Sesión inferior */}
+        <div className="p-4 border-t border-gray-100 shrink-0">
           <button 
             onClick={handleLogout}
-            className="flex items-center gap-2 w-full px-3 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+            className="flex items-center gap-2 w-full px-3 py-2.5 text-sm font-bold text-red-600 hover:bg-red-50 rounded-lg transition-colors"
           >
             <LogOut size={20} />
             Cerrar Sesión
@@ -73,7 +115,17 @@ export default function DashboardLayout() {
         </div>
       </aside>
 
-      <main className="flex-1 overflow-y-auto p-8 bg-gray-50">
+      {/* 3. CAPA OSCURA DE FONDO (Para cuando el menú esté abierto en celulares) */}
+      {isSidebarOpen && (
+        <div 
+          onClick={() => setIsSidebarOpen(false)}
+          className="fixed inset-0 bg-black/30 backdrop-blur-xs z-40 md:hidden"
+        />
+      )}
+
+      {/* 4. CONTENEDOR DE CONTENIDO PRINCIPAL (Donde cargan tus módulos) */}
+      {/* Cambiado el padding excesivo de `p-8` a `p-4 sm:p-6 md:p-8` para liberar espacio en el teléfono */}
+      <main className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8 bg-gray-50">
         <div className="max-w-7xl mx-auto">
           <Outlet />
         </div>
