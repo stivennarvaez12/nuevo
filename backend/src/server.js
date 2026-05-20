@@ -116,11 +116,17 @@ app.delete('/productos/:id', (req, res) => {
 });
 
 // ==========================================
-// 3. VENTAS Y DETALLES
+// 3. VENTAS Y DETALLES (MODIFICADO CON ID_CLIENTE)
 // ==========================================
 app.post('/api/ventas', (req, res) => {
-    const { id_usuario, total_venta, carrito } = req.body;
-    db.query("INSERT INTO ventas (id_usuario, total_venta) VALUES (?, ?)", [id_usuario, total_venta], (err, result) => {
+    const { id_usuario, id_cliente, total_venta, carrito } = req.body;
+    
+    // Si por alguna razón no viene el id_cliente, se le asigna 1 por defecto (Cliente General)
+    const clienteId = id_cliente || 1;
+
+    // Agregamos id_cliente al INSERT de la tabla ventas
+    db.query("INSERT INTO ventas (id_usuario, id_cliente, total_venta) VALUES (?, ?, ?)", 
+    [id_usuario, clienteId, total_venta], (err, result) => {
         if (err) return res.status(500).json({ error: err.message });
         const id_venta = result.insertId;
         
@@ -138,7 +144,7 @@ app.post('/api/ventas', (req, res) => {
         });
 
         Promise.all(queries)
-            .then(() => res.status(201).json({ message: "Venta registrada", id_venta }))
+            .then(() => res.status(201).json({ message: "Venta registrada con éxito", id_venta }))
             .catch(error => res.status(500).json({ error: error.message }));
     });
 });
@@ -163,10 +169,11 @@ app.post('/api/gastos', (req, res) => {
 });
 
 // ==========================================
-// 5. CLIENTES (ACTUALIZADO)
+// 5. CLIENTES (OPTIMIZADO CON ALIAS PARA EL FRONTEND)
 // ==========================================
 app.get('/api/clientes', (req, res) => {
-    db.query("SELECT id_cliente, nombre, documento, telefono, correo, direccion FROM clientes", (err, data) => {
+    // Usamos 'documento AS cedula' para que coincida exactamente con el layout de tu Ventas.jsx
+    db.query("SELECT id_cliente, nombre, documento AS cedula, telefono, correo, direccion FROM clientes", (err, data) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json(data);
     });
@@ -182,7 +189,7 @@ app.post('/api/clientes', (req, res) => {
 });
 
 // ==========================================
-// 6. COMPRAS (ACTUALIZADO)
+// 6. COMPRAS
 // ==========================================
 app.get('/api/compras', (req, res) => {
     db.query("SELECT id_compra, id_usuario, total_compradecimal AS total, fecha_compra FROM compras ORDER BY fecha_compra DESC", (err, data) => {

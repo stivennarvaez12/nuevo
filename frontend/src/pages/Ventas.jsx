@@ -1,32 +1,43 @@
 import { useState, useEffect } from 'react';
 import { 
   ShoppingCart, Plus, Minus, Trash2, 
-  CreditCard, Search, Wine, Loader2 
+  CreditCard, Search, Wine, Loader2, User 
 } from 'lucide-react';
 
 export default function Ventas() {
   const [productos, setProductos] = useState([]);
+  const [clientes, setClientes] = useState([]); // Nuevo estado para los clientes
+  const [idClienteSeleccionado, setIdClienteSeleccionado] = useState("1"); // Por defecto Cliente General
   const [carrito, setCarrito] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
-  const [procesando, setProcesando] = useState(false); // Nuevo estado para el botón de cobro
+  const [procesando, setProcesando] = useState(false);
 
-  // 1. Cargar el inventario al abrir la caja
-  const fetchProductos = async () => {
+  // 1. Cargar el inventario y los clientes al abrir el módulo
+  const fetchData = async () => {
     try {
-      const response = await fetch('http://192.168.18.28:4000/productos');
-      const data = await response.json();
-      // Filtramos para que solo salgan los que tienen stock mayor a 0
-      setProductos(data.filter(p => p.stock > 0));
+      setLoading(true);
+      
+      // Cargar Productos
+      const resProductos = await fetch('http://192.168.18.28:4000/productos');
+      const dataProductos = await resProductos.json();
+      setProductos(dataProductos.filter(p => p.stock > 0));
+
+      // Cargar Clientes
+      const resClientes = await fetch('http://192.168.18.28:4000/api/clientes');
+      if (resClientes.ok) {
+        const dataClientes = await resClientes.json();
+        setClientes(dataClientes);
+      }
     } catch (error) {
-      console.error("Error al cargar productos:", error);
+      console.error("Error al cargar datos del sistema:", error);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchProductos();
+    fetchData();
   }, []);
 
   // 2. Función para agregar al carrito
@@ -35,26 +46,27 @@ export default function Ventas() {
     
     if (itemExistente) {
       if (itemExistente.cantidad >= producto.stock) {
-        alert("¡No hay más stock disponible de este producto!");
+        alert(`¡No hay más stock disponible! Máximo: ${producto.stock} unidades.`);
         return;
       }
       setCarrito(carrito.map(item => 
-        item.id === producto.id ? { ...item, cantidad: item.cantidad + 1 } : item
+        item.id === producto.id ? { ...item, cantidad: Number(item.cantidad) + 1 } : item
       ));
     } else {
       setCarrito([...carrito, { ...producto, cantidad: 1 }]);
     }
   };
 
-  // 3. Modificar cantidades en el carrito (+ o -)
+  // 3. Modificar cantidades con los botones (+ o -)
   const modificarCantidad = (id, delta) => {
     setCarrito(carrito.map(item => {
       if (item.id === id) {
-        const nuevaCantidad = item.cantidad + delta;
+        const cantidadActual = item.cantidad === '' ? 1 : Number(item.cantidad);
+        const nuevaCantidad = cantidadActual + delta;
         const productoOriginal = productos.find(p => p.id === id);
         
         if (nuevaCantidad > productoOriginal.stock) {
-          alert("Stock máximo alcanzado");
+          alert(`Stock máximo alcanzado: ${productoOriginal.stock} unidades.`);
           return item;
         }
         return nuevaCantidad > 0 ? { ...item, cantidad: nuevaCantidad } : item;
@@ -63,13 +75,47 @@ export default function Ventas() {
     }));
   };
 
+  // 3b. NUEVO: Controlar la escritura manual en el input de cantidad
+  const handleCantidadManual = (id, valor) => {
+    const productoOriginal = productos.find(p => p.id === id);
+    
+    // Si el usuario borra el número para escribir otro, lo dejamos temporalmente vacío
+    if (valor === '') {
+      setCarrito(carrito.map(item => item.id === id ? { ...item, cantidad: '' } : item));
+      return;
+    }
+
+    const cantidadNum = parseInt(valor, 10);
+
+    // Evitar números negativos o cero de forma manual
+    if (isNaN(cantidadNum) || cantidadNum < 1) {
+      return;
+    }
+
+    // Validar rigurosamente contra el Stock disponible
+    if (cantidadNum > productoOriginal.stock) {
+      alert(`¡Alerta de inventario! Solo quedan ${productoOriginal.stock} unidades de este producto.`);
+      setCarrito(carrito.map(item => item.id === id ? { ...item, cantidad: productoOriginal.stock } : item));
+      return;
+    }
+
+    setCarrito(carrito.map(item => item.id === id ? { ...item, cantidad: cantidadNum } : item));
+  };
+
+  // Validar al salir del input que no quede vacío
+  const validarBlurCantidad = (id, valor) => {
+    if (valor === '' || Number(valor) < 1) {
+      setCarrito(carrito.map(item => item.id === id ? { ...item, cantidad: 1 } : item));
+    }
+  };
+
   // 4. Quitar un producto de la lista
   const eliminarDelCarrito = (id) => {
     setCarrito(carrito.filter(item => item.id !== id));
   };
 
-  // 5. Calcular el total a pagar
-  const total = carrito.reduce((sum, item) => sum + (item.precio * item.cantidad), 0);
+  // 5. Calcular el total a pagar protegiendo errores si el input está vacío
+  const total = carrito.reduce((sum, item) => sum + (item.precio * (Number(item.cantidad) || 0)), 0);
 
   // 6. Filtrar para el buscador
   const productosFiltrados = productos.filter(p => 
@@ -77,12 +123,17 @@ export default function Ventas() {
     p.categoria.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // 7. PROCESAR LA VENTA (La magia con la base de datos)
+  // 7. PROCESAR LA VENTA (Enviando el cliente seleccionado)
   const procesarVenta = async () => {
     setProcesando(true);
     try {
-      // Usamos el ID del usuario logueado (si no existe, ponemos 1 por defecto para pruebas)
       const id_usuario = localStorage.getItem('id_usuario') || 1;
+
+      // Limpiamos el carrito antes de enviar por si hay algún input vacío temporal
+      const carritoLimpio = carrito.map(item => ({
+        ...item,
+        cantidad: item.cantidad === '' ? 1 : Number(item.cantidad)
+      }));
 
       const response = await fetch('http://192.168.18.28:4000/api/ventas', {
         method: 'POST',
@@ -91,15 +142,17 @@ export default function Ventas() {
         },
         body: JSON.stringify({
           id_usuario: id_usuario,
+          id_cliente: idClienteSeleccionado, // Pasamos el cliente seleccionado a la DB
           total_venta: total,
-          carrito: carrito
+          carrito: carritoLimpio
         })
       });
 
       if (response.ok) {
         alert("¡Venta registrada con éxito! 💸");
-        setCarrito([]); // Vaciamos el carrito
-        fetchProductos(); // Recargamos el stock actualizado de la base de datos
+        setCarrito([]);
+        setIdClienteSeleccionado("1"); // Reiniciar a cliente general
+        fetchData(); // Recargar productos y clientes con stock fresco
       } else {
         alert("Error al registrar la venta. Intenta nuevamente.");
       }
@@ -133,7 +186,10 @@ export default function Ventas() {
         {/* Cuadrícula de Productos */}
         <div className="flex-1 overflow-y-auto p-5">
           {loading ? (
-            <div className="flex justify-center items-center h-full text-gray-400">Cargando inventario...</div>
+            <div className="flex justify-center items-center h-full text-gray-400 flex-col gap-2">
+              <Loader2 className="animate-spin text-black" size={32} />
+              <span>Sincronizando inventario...</span>
+            </div>
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
               {productosFiltrados.map((producto) => (
@@ -168,12 +224,31 @@ export default function Ventas() {
           <h2 className="text-xl font-bold">Caja Registradora</h2>
         </div>
 
+        {/* NUEVO SECTOR: SELECTOR DE CLIENTE INTEGRADO */}
+        <div className="p-4 border-b border-gray-100 bg-amber-50/50 flex flex-col gap-1.5">
+          <label className="text-xs font-black text-gray-600 uppercase tracking-wider flex items-center gap-1.5">
+            <User size={14} className="text-black" /> Asignar Cliente a la Venta
+          </label>
+          <select
+            value={idClienteSeleccionado}
+            onChange={(e) => setIdClienteSeleccionado(e.target.value)}
+            className="w-full p-2.5 bg-white border border-gray-200 rounded-xl text-sm font-bold shadow-sm outline-none focus:ring-2 focus:ring-black transition-all cursor-pointer"
+          >
+            <option value="1">👤 Cliente General (Mostrador)</option>
+            {clientes.map(c => (
+              <option key={c.id_cliente || c.id} value={c.id_cliente || c.id}>
+                💼 {c.nombre} {c.apellido || ''} ({c.cedula || 'Sin Cédula'})
+              </option>
+            ))}
+          </select>
+        </div>
+
         {/* Lista del carrito */}
         <div className="flex-1 overflow-y-auto p-5 bg-gray-50 flex flex-col gap-3">
           {carrito.length === 0 ? (
             <div className="m-auto text-center text-gray-400 flex flex-col items-center gap-2">
               <ShoppingCart size={48} className="opacity-20" />
-              <p>Agrega productos para cobrar</p>
+              <p className="font-medium text-sm">Agrega productos para cobrar</p>
             </div>
           ) : (
             carrito.map((item) => (
@@ -183,14 +258,31 @@ export default function Ventas() {
                   <p className="font-black text-sm text-black">${Number(item.precio).toLocaleString('es-CO')}</p>
                 </div>
                 
-                {/* Controles de cantidad */}
-                <div className="flex items-center gap-2 bg-gray-50 rounded-lg p-1 border border-gray-100">
-                  <button onClick={() => modificarCantidad(item.id, -1)} className="p-1 hover:bg-white rounded-md shadow-sm text-gray-600">
-                    <Minus size={16} />
+                {/* NUEVOS CONTROLES: INPUT MANUAL + BOTONES */}
+                <div className="flex items-center gap-1 bg-gray-50 rounded-xl p-1 border border-gray-200">
+                  <button 
+                    type="button"
+                    onClick={() => modificarCantidad(item.id, -1)} 
+                    className="p-1.5 hover:bg-white rounded-md shadow-sm text-gray-600 active:scale-90 transition-all"
+                  >
+                    <Minus size={14} />
                   </button>
-                  <span className="font-bold text-sm w-6 text-center">{item.cantidad}</span>
-                  <button onClick={() => modificarCantidad(item.id, 1)} className="p-1 hover:bg-white rounded-md shadow-sm text-gray-600">
-                    <Plus size={16} />
+                  
+                  <input
+                    type="number"
+                    value={item.cantidad}
+                    onChange={(e) => handleCantidadManual(item.id, e.target.value)}
+                    onBlur={(e) => validarBlurCantidad(item.id, e.target.value)}
+                    min="1"
+                    className="font-black text-sm w-12 text-center bg-transparent border-none outline-none focus:ring-0 p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  />
+
+                  <button 
+                    type="button"
+                    onClick={() => modificarCantidad(item.id, 1)} 
+                    className="p-1.5 hover:bg-white rounded-md shadow-sm text-gray-600 active:scale-90 transition-all"
+                  >
+                    <Plus size={14} />
                   </button>
                 </div>
 
