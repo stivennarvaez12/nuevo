@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Receipt, Calendar, Search, FileText, Eye, X, Package } from 'lucide-react';
+import { Receipt, Calendar, Search, FileText, Eye, X, Package, User } from 'lucide-react';
 
 export default function HistorialVentas() {
   const [ventas, setVentas] = useState([]);
@@ -12,7 +12,7 @@ export default function HistorialVentas() {
   const [loadingDetalle, setLoadingDetalle] = useState(false);
   const [showModal, setShowModal] = useState(false);
 
-  // 1. Cargar el historial general
+  // 1. Cargar el historial general (Conectado a tu nuevo backend con JOINs)
   useEffect(() => {
     const fetchVentas = async () => {
       try {
@@ -36,7 +36,8 @@ export default function HistorialVentas() {
     setShowModal(true);
     setLoadingDetalle(true);
     try {
-      const response = await fetch(`http://192.168.18.28:4000/api/ventas/${venta.id_venta}`);
+      // Ajustado a la nueva ruta de detalles del backend
+      const response = await fetch(`http://192.168.18.28:4000/api/ventas/${venta.id}/detalle`);
       if (response.ok) {
         const data = await response.json();
         setDetalles(data);
@@ -48,9 +49,10 @@ export default function HistorialVentas() {
     }
   };
 
-  // Filtrar ventas por ID 
+  // Filtrar ventas por ID o por Nombre de Cliente (¡Ahora es más inteligente!)
   const ventasFiltradas = ventas.filter(v => 
-    v.id_venta.toString().includes(searchTerm)
+    v.id.toString().includes(searchTerm) || 
+    v.cliente.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   // Formatear fechas
@@ -73,15 +75,15 @@ export default function HistorialVentas() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Historial de Ventas</h1>
-          <p className="text-gray-500 mt-1">Revisa todas las facturas y recibos emitidos en caja.</p>
+          <p className="text-gray-500 mt-1">Revisa todas las facturas, clientes asociados y recibos emitidos en caja.</p>
         </div>
 
         {/* Buscador de Facturas */}
-        <div className="relative w-full sm:w-64">
+        <div className="relative w-full sm:w-72">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
           <input 
             type="text" 
-            placeholder="Buscar # de recibo..." 
+            placeholder="Buscar por # recibo o cliente..." 
             className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-black outline-none font-medium text-sm transition-all"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -113,26 +115,32 @@ export default function HistorialVentas() {
                 <tr className="bg-white border-b border-gray-100 text-xs text-gray-400 uppercase tracking-wider">
                   <th className="p-4 font-bold"># Recibo</th>
                   <th className="p-4 font-bold">Fecha y Hora</th>
-                  <th className="p-4 font-bold">Cajero (ID)</th>
+                  <th className="p-4 font-bold">Cliente</th>
+                  <th className="p-4 font-bold">Cajero</th>
                   <th className="p-4 font-bold text-right">Total Cobrado</th>
                   <th className="p-4 font-bold text-center">Acciones</th>
                 </tr>
               </thead>
               <tbody>
                 {ventasFiltradas.map((venta) => (
-                  <tr key={venta.id_venta} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
+                  <tr key={venta.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
                     <td className="p-4 font-black text-gray-800">
-                      #{venta.id_venta.toString().padStart(5, '0')}
+                      #{venta.id.toString().padStart(5, '0')}
                     </td>
                     <td className="p-4 text-gray-600 flex items-center gap-2 text-sm font-medium">
                       <Calendar size={16} className="text-gray-400" />
-                      {formatearFecha(venta.fecha_venta || venta.created_at)}
+                      {formatearFecha(venta.fecha)}
                     </td>
-                    <td className="p-4 text-gray-600 text-sm font-medium">
-                      User-{venta.id_usuario}
+                    {/* ¡NUEVA COLUMNA DE CLIENTE! */}
+                    <td className="p-4 text-gray-900 font-bold text-sm">
+                      {venta.cliente}
+                    </td>
+                    {/* ¡MUESTRA EL NOMBRE DEL CAJERO EN VEZ DEL ID ANÓNIMO! */}
+                    <td className="p-4 text-gray-600 text-sm font-medium flex items-center gap-1 mt-1.5">
+                      <User size={14} className="text-gray-400" /> {venta.cajero || 'Sistema'}
                     </td>
                     <td className="p-4 font-black text-emerald-600 text-right text-lg">
-                      ${Number(venta.total_venta).toLocaleString('es-CO')}
+                      ${Number(venta.total).toLocaleString('es-CO')}
                     </td>
                     <td className="p-4 text-center">
                       <button 
@@ -163,8 +171,8 @@ export default function HistorialVentas() {
                   <Receipt size={24} />
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold">Recibo #{selectedVenta?.id_venta.toString().padStart(5, '0')}</h3>
-                  <p className="text-gray-400 text-xs uppercase tracking-widest font-semibold">Detalle de transacción</p>
+                  <h3 className="text-xl font-bold">Recibo #{selectedVenta?.id.toString().padStart(5, '0')}</h3>
+                  <p className="text-gray-400 text-xs uppercase tracking-widest font-semibold">Cliente: {selectedVenta?.cliente}</p>
                 </div>
               </div>
               <button 
@@ -178,8 +186,8 @@ export default function HistorialVentas() {
             {/* Contenido del Modal */}
             <div className="p-6">
               <div className="flex items-center justify-between mb-6 text-sm text-gray-500 border-b border-dashed pb-4">
-                <span className="flex items-center gap-1"><Calendar size={14}/> {formatearFecha(selectedVenta?.fecha_venta)}</span>
-                <span className="font-bold text-gray-900">ID Usuario: {selectedVenta?.id_usuario}</span>
+                <span className="flex items-center gap-1"><Calendar size={14}/> {formatearFecha(selectedVenta?.fecha)}</span>
+                <span className="font-bold text-gray-900">Atendido por: {selectedVenta?.cajero}</span>
               </div>
 
               {loadingDetalle ? (
@@ -189,19 +197,19 @@ export default function HistorialVentas() {
               ) : (
                 <div className="space-y-4">
                   <div className="max-h-60 overflow-y-auto pr-2 custom-scrollbar">
-                    {detalles.map((det) => (
-                      <div key={det.id_detalle} className="flex items-center justify-between py-3 border-b border-gray-50 last:border-0">
+                    {detalles.map((det, index) => (
+                      <div key={index} className="flex items-center justify-between py-3 border-b border-gray-50 last:border-0">
                         <div className="flex items-center gap-3">
                           <div className="bg-gray-100 p-2 rounded-lg text-gray-500">
                             <Package size={18} />
                           </div>
                           <div>
-                            <p className="font-bold text-gray-800">{det.nombre_producto}</p>
-                            <p className="text-xs text-gray-500">{det.cantidad} unidad(es) x ${Number(det.precio_unitario).toLocaleString()}</p>
+                            <p className="font-bold text-gray-800">{det.nombre}</p>
+                            <p className="text-xs text-gray-500">{det.cantidad} unidad(es) x ${Number(det.precio).toLocaleString()}</p>
                           </div>
                         </div>
                         <p className="font-black text-gray-900">
-                          ${(det.cantidad * det.precio_unitario).toLocaleString()}
+                          ${(det.cantidad * det.precio).toLocaleString()}
                         </p>
                       </div>
                     ))}
@@ -211,7 +219,7 @@ export default function HistorialVentas() {
                   <div className="mt-6 bg-emerald-50 p-4 rounded-2xl flex justify-between items-center border border-emerald-100">
                     <span className="text-emerald-800 font-bold text-lg">Total Pagado:</span>
                     <span className="text-emerald-700 font-black text-2xl">
-                      ${Number(selectedVenta?.total_venta).toLocaleString('es-CO')}
+                      ${Number(selectedVenta?.total).toLocaleString('es-CO')}
                     </span>
                   </div>
                 </div>
