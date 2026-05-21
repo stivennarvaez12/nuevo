@@ -13,7 +13,7 @@ export default function Clientes() {
   // Cargar clientes desde el servidor
   const fetchClientes = async () => {
     try {
-      const response = await fetch('http://192.168.18.28:4000/api/clientes');
+      const response = await fetch('http://172.20.10.4:4000/api/clientes');
       if (!response.ok) throw new Error("Error en la respuesta");
       const data = await response.json();
       setClientes(data);
@@ -37,7 +37,7 @@ export default function Clientes() {
     }
 
     try {
-      const response = await fetch('http://192.168.18.28:4000/api/clientes', {
+      const response = await fetch('http://172.20.10.4:4000/api/clientes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         // AHORA ENVIAMOS LA DIRECCIÓN AL BACKEND

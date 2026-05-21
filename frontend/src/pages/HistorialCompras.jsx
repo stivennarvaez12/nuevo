@@ -8,7 +8,7 @@ export default function HistorialCompras() {
   useEffect(() => {
     const fetchCompras = async () => {
       try {
-        const response = await fetch('http://192.168.18.28:4000/api/compras');
+        const response = await fetch('http://172.20.10.4:4000/api/compras');
         if (response.ok) {
           const data = await response.json();
           setCompras(data);

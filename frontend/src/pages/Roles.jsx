@@ -6,7 +6,7 @@ const Roles = () => {
 
     const cargarRoles = async () => {
         try {
-            const res = await fetch('http://192.168.18.28:4000/api/roles');
+            const res = await fetch('http://172.20.10.4:4000/api/roles');
             const data = await res.json();
             setRoles(data);
         } catch (err) {

@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 
 // --- CONFIGURACIÓN DE LA URL ---
-const RAW_URL = import.meta.env.VITE_API_URL || 'http://192.168.18.28:4000';
+const RAW_URL = import.meta.env.VITE_API_URL || 'http://172.20.10.4:4000';
 // Limpiamos la URL por si tiene una "/" al final para evitar errores de ruta
 const API_URL = RAW_URL.replace(/\/$/, "");
 

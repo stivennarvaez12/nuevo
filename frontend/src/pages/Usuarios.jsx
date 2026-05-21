@@ -11,11 +11,11 @@ const Usuarios = () => {
 
   const cargarDatos = async () => {
     try {
-      const resU = await fetch('http://192.168.18.28:4000/api/usuarios');
+      const resU = await fetch('http://172.20.10.4:4000/api/usuarios');
       const dataU = await resU.json();
       setUsuarios(dataU);
 
-      const resR = await fetch('http://192.168.18.28:4000/api/roles');
+      const resR = await fetch('http://172.20.10.4:4000/api/roles');
       const dataR = await resR.json();
       setRoles(dataR);
     } catch (error) {
@@ -32,7 +32,7 @@ const Usuarios = () => {
     if (!idRol) return alert("Selecciona un rol");
 
     try {
-      const res = await fetch('http://192.168.18.28:4000/api/usuarios', {
+      const res = await fetch('http://172.20.10.4:4000/api/usuarios', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ nombre, email, password, id_rol: idRol })
@@ -50,7 +50,7 @@ const Usuarios = () => {
 
   const eliminar = async (id) => {
     if (window.confirm("¿Eliminar este usuario?")) {
-      await fetch(`http://192.168.18.28:4000/api/usuarios/${id}`, { method: 'DELETE' });
+      await fetch(`http://172.20.10.4:4000/api/usuarios/${id}`, { method: 'DELETE' });
       cargarDatos();
     }
   };

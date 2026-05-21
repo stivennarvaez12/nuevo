@@ -11,7 +11,7 @@ export default function Compras() {
   useEffect(() => {
     const fetchProductos = async () => {
       try {
-        const response = await fetch('http://192.168.18.28:4000/productos');
+        const response = await fetch('http://172.20.10.4:4000/productos');
         if (response.ok) {
           const data = await response.json();
           setProductos(data);
@@ -83,7 +83,7 @@ export default function Compras() {
     const idUsuario = localStorage.getItem('id_usuario') || 1; 
 
     try {
-      const response = await fetch('http://192.168.18.28:4000/api/compras', {
+      const response = await fetch('http://172.20.10.4:4000/api/compras', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -97,7 +97,7 @@ export default function Compras() {
         alert("¡Compra registrada! El stock de los productos ha sido actualizado.");
         setCarrito([]); // Limpiar carrito
         // Recargar productos para ver el stock actualizado en pantalla
-        const res = await fetch('http://192.168.18.28:4000/productos');
+        const res = await fetch('http://172.20.10.4:4000/productos');
         if (res.ok) {
           setProductos(await res.json());
         }
@@ -147,7 +147,7 @@ export default function Compras() {
                 >
                   <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
                     {prod.imagen ? (
-                      <img src={`http://192.168.18.28:4000/uploads/${prod.imagen}`} alt={prod.nombre} className="w-12 h-12 object-cover rounded-full" />
+                      <img src={`http://172.20.10.4:4000/uploads/${prod.imagen}`} alt={prod.nombre} className="w-12 h-12 object-cover rounded-full" />
                     ) : (
                       <Package size={24} className="text-gray-400" />
                     )}
