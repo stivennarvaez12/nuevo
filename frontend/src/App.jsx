@@ -29,10 +29,7 @@ function App() {
             <Route path="gastos" element={<Gastos />} />
             <Route path="clientes" element={<Clientes />} /> 
             <Route path="usuarios" element={<Usuarios />} />
-            
-            {/* Aquí quedó enlazado tu nuevo módulo de Roles */}
             <Route path="roles" element={<Roles />} />
-            
           </Route>
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
