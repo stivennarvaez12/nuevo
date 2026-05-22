@@ -16,7 +16,7 @@ export default function HistorialVentas() {
   useEffect(() => {
     const fetchVentas = async () => {
       try {
-        const response = await fetch('http://https://nuevo-98vm.onrender.com:4000/api/ventas');
+        const response = await fetch('https://nuevo-98vm.onrender.com/api/ventas');
         if (response.ok) {
           const data = await response.json();
           setVentas(data);
@@ -36,7 +36,7 @@ export default function HistorialVentas() {
     setShowModal(true);
     setLoadingDetalle(true);
     try {
-      const response = await fetch(`http://https://nuevo-98vm.onrender.com:4000/api/ventas/${venta.id}/detalle`);
+      const response = await fetch(`https://nuevo-98vm.onrender.com/api/ventas/${venta.id}/detalle`);
       if (response.ok) {
         const data = await response.json();
         setDetalles(data);
@@ -106,6 +106,7 @@ export default function HistorialVentas() {
     mensaje += `---------------------------\n`;
     
     detalles.forEach(det => {
+      window.log || console.log(det);
       mensaje += `• ${det.nombre} (x${det.cantidad}) - $${(det.cantidad * det.precio).toLocaleString('es-CO')}\n`;
     });
     
@@ -312,7 +313,7 @@ export default function HistorialVentas() {
                     </span>
                   </div>
 
-                  {/* ¡NUEVA SECCIÓN DE ACCIONES DE COMPARTIR/IMPRIMIR! */}
+                  {/* SECCIÓN DE ACCIONES DE COMPARTIR/IMPRIMIR */}
                   <div className="grid grid-cols-3 gap-2 pt-4 border-t border-gray-100">
                     <button
                       onClick={handleImprimir}
