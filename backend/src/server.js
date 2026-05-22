@@ -194,13 +194,14 @@ app.post('/api/ventas', (req, res) => {
     });
 });
 
+// CORRECCIÓN: Ajustada columna real 'v.fecha' de la DB
 app.get('/api/ventas', (req, res) => {
     const sql = `
         SELECT 
             v.id_venta AS id, 
             v.total_venta AS total, 
-            v.fecha_venta AS fecha, 
-            u.nombre AS cajero, 
+            v.fecha AS fecha, 
+            IFNULL(u.nombre, 'Sistema') AS cajero, 
             IFNULL(c.nombre, 'Cliente General') AS cliente
         FROM ventas v
         LEFT JOIN usuarios u ON v.id_usuario = u.id_usuario
@@ -250,7 +251,6 @@ app.post('/api/gastos', (req, res) => {
 // 5. CLIENTES
 // ==========================================
 app.get('/api/clientes', (req, res) => {
-    // CORRECCIÓN: Se quitó el alias "AS cedula" para que mande "documento", tal como lo mapea el Frontend
     db.query("SELECT id_cliente, nombre, documento, telefono, correo, direccion FROM clientes", (err, data) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json(data);
@@ -269,56 +269,36 @@ app.post('/api/clientes', (req, res) => {
 // ==========================================
 // 6. COMPRAS
 // ==========================================
+// CORRECCIÓN: Ajustadas columnas reales 'total_compra' y 'fecha_compra' de la DB
 app.get('/api/compras', (req, res) => {
-    // SINCRONIZACIÓN: Enviamos tanto total como total_compra para evitar incompatibilidad con el renderizado del front
-    db.query("SELECT id_compra, id_usuario, total_compradecimal AS total, total_compradecimal AS total_compra, fecha_compra FROM compras ORDER BY fecha_compra DESC", (err, data) => {
+    const sql = `
+        SELECT 
+            id_compra, 
+            id_usuario, 
+            total_compra AS total, 
+            total_compra, 
+            fecha_compra 
+        FROM compras 
+        ORDER BY fecha_compra DESC
+    `;
+    db.query(sql, (err, data) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json(data);
     });
 });
 
+// CORRECCIÓN: Ajustada columna real 'total_compra' para el registro
 app.post('/api/compras', (req, res) => {
-    const { id_usuario, total_compradecimal } = req.body;
-    const sql = "INSERT INTO compras (id_usuario, total_compradecimal) VALUES (?, ?)";
-    db.query(sql, [id_usuario, total_compradecimal], (err, result) => {
+    const { id_usuario, total_compra } = req.body;
+    const sql = "INSERT INTO compras (id_usuario, total_compra) VALUES (?, ?)";
+    db.query(sql, [id_usuario, total_compra], (err, result) => {
         if (err) return res.status(500).json({ error: err.message });
         res.status(201).json({ message: "Compra registrada", id_compra: result.insertId });
     });
 });
 
-// ==========================================
-// 7. DASHBOARD
-// ==========================================
-app.get('/api/dashboard', (req, res) => {
-    const qVentas = "SELECT IFNULL(SUM(total_venta), 0) as totalIngresos FROM ventas";
-    const qGastos = "SELECT IFNULL(SUM(monto), 0) as totalGastos FROM gastos";
-    const qCompras = "SELECT IFNULL(SUM(total_compradecimal), 0) as totalCompras FROM compras";
-    const qProd = "SELECT COUNT(*) as totalProductos FROM productos";
-    const qStock = "SELECT nombre_producto as nombre, stock FROM productos WHERE stock <= 5";
-
-    db.query(qVentas, (err1, rVentas) => {
-        db.query(qGastos, (err2, rGastos) => {
-            db.query(qCompras, (err3, rCompras) => {
-                db.query(qProd, (err4, rProd) => {
-                    db.query(qStock, (err5, rStock) => {
-                        if (err1 || err2 || err3 || err4 || err5) return res.status(500).json({ error: "Error dashboard" });
-                        res.json({
-                            totalIngresos: rVentas[0].totalIngresos,
-                            totalGastos: rGastos[0].totalGastos,
-                            totalCompras: rCompras[0].totalCompras,
-                            totalProductos: rProd[0].totalProductos,
-                            alertasStock: rStock 
-                        });
-                    });
-                });
-            });
-        });
-    });
-});
-
-app.get('/', (req, res) => res.send('🚀 Servidor Licores Nicole v3.5 - ¡SRC/SERVER.JS EN VIVO!'));
-
-const PORT = process.env.PORT || 10000; 
-app.listen(PORT, '0.0.0.0', () => {
+// --- 4. LEVANTAMIENTO DEL SERVIDOR ---
+const PORT = process.env.PORT || 10000;
+app.listen(PORT, () => {
     console.log(`🚀 Servidor corriendo en puerto ${PORT}`);
 });
