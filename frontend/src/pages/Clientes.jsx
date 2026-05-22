@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Users, UserPlus, Phone, Mail, IdCard, MapPin } from 'lucide-react';
 
 export default function Clientes() {
@@ -13,10 +13,13 @@ export default function Clientes() {
   // Cargar clientes desde el servidor
   const fetchClientes = async () => {
     try {
-      const response = await fetch('http://https://nuevo-98vm.onrender.com:4000/api/clientes');
+      // CORRECCIÓN CRÍTICA DE URL: Removido el protocolo duplicado y el puerto :4000
+      const response = await fetch('https://nuevo-98vm.onrender.com/api/clientes');
       if (!response.ok) throw new Error("Error en la respuesta");
       const data = await response.json();
-      setClientes(data);
+      
+      // BLINDAJE: Garantizamos que siempre sea un array válido
+      setClientes(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error("Error al cargar clientes:", error);
     } finally {
@@ -37,10 +40,10 @@ export default function Clientes() {
     }
 
     try {
-      const response = await fetch('http://https://nuevo-98vm.onrender.com:4000/api/clientes', {
+      // CORRECCIÓN CRÍTICA DE URL: Modificada la ruta de envío al endpoint correcto de Render
+      const response = await fetch('https://nuevo-98vm.onrender.com/api/clientes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        // AHORA ENVIAMOS LA DIRECCIÓN AL BACKEND
         body: JSON.stringify({ nombre, documento, telefono, correo, direccion })
       });
 
@@ -181,27 +184,27 @@ export default function Clientes() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {clientes.map((cliente) => (
-                <div key={cliente.id_cliente} className="p-5 bg-white border border-gray-100 rounded-xl hover:shadow-md hover:border-blue-100 transition-all flex flex-col gap-3">
+                <div key={cliente?.id_cliente || cliente?.id} className="p-5 bg-white border border-gray-100 rounded-xl hover:shadow-md hover:border-blue-100 transition-all flex flex-col gap-3">
                   <h4 className="font-bold text-gray-800 text-lg flex items-center gap-2">
                     <div className="bg-blue-50 text-blue-500 p-2 rounded-full">
                       <Users size={16}/>
                     </div>
-                    {cliente.nombre}
+                    {cliente?.nombre || "Cliente Sin Nombre"}
                   </h4>
                   <div className="text-sm text-gray-500 space-y-2 mt-1 pl-10 font-medium">
-                    {cliente.documento && (
+                    {cliente?.documento && (
                       <p className="flex items-center gap-2"><IdCard size={14} className="text-gray-400"/> CC/NIT: {cliente.documento}</p>
                     )}
-                    {cliente.telefono && (
+                    {cliente?.telefono && (
                       <p className="flex items-center gap-2"><Phone size={14} className="text-gray-400"/> {cliente.telefono}</p>
                     )}
-                    {cliente.correo && (
+                    {cliente?.correo && (
                       <p className="flex items-center gap-2"><Mail size={14} className="text-gray-400"/> {cliente.correo}</p>
                     )}
-                    {cliente.direccion && (
+                    {cliente?.direccion && (
                       <p className="flex items-center gap-2 text-blue-600"><MapPin size={14} className="text-blue-400"/> {cliente.direccion}</p>
                     )}
-                    {!cliente.documento && !cliente.telefono && !cliente.correo && !cliente.direccion && (
+                    {!cliente?.documento && !cliente?.telefono && !cliente?.correo && !cliente?.direccion && (
                       <p className="italic text-gray-400">Sin datos de contacto adicionales</p>
                     )}
                   </div>

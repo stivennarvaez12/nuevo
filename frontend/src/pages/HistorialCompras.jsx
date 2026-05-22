@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { PackageCheck, Calendar, DollarSign } from 'lucide-react';
 
 export default function HistorialCompras() {
@@ -8,10 +8,12 @@ export default function HistorialCompras() {
   useEffect(() => {
     const fetchCompras = async () => {
       try {
-        const response = await fetch('http://https://nuevo-98vm.onrender.com:4000/api/compras');
+        // CORRECCIÓN CRÍTICA DE URL: Se eliminó el duplicado http:// y el puerto :4000
+        const response = await fetch('https://nuevo-98vm.onrender.com/api/compras');
         if (response.ok) {
           const data = await response.json();
-          setCompras(data);
+          // BLINDAJE: Garantizamos que sea un array válido
+          setCompras(Array.isArray(data) ? data : []);
         }
       } catch (error) {
         console.error("Error al cargar el historial de compras:", error);
@@ -21,6 +23,15 @@ export default function HistorialCompras() {
     };
     fetchCompras();
   }, []);
+
+  // Función interna para formatear fechas de forma segura
+  const formatearFecha = (fechaOriginal) => {
+    if (!fechaOriginal) return "Fecha no disponible";
+    const fecha = new Date(fechaOriginal);
+    return isNaN(fecha.getTime()) 
+      ? "Fecha inválida" 
+      : fecha.toLocaleString('es-CO');
+  };
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col h-[calc(100vh-6rem)] animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -45,16 +56,16 @@ export default function HistorialCompras() {
         ) : (
           <div className="grid gap-4">
             {compras.map((compra) => (
-              <div key={compra.id_compra} className="flex justify-between items-center p-5 bg-white border border-gray-100 rounded-xl hover:border-indigo-200 hover:shadow-md transition-all group">
+              <div key={compra?.id_compra || compra?.id} className="flex justify-between items-center p-5 bg-white border border-gray-100 rounded-xl hover:border-indigo-200 hover:shadow-md transition-all group">
                 <div className="flex items-center gap-5">
                   <div className="bg-indigo-50 text-indigo-600 px-4 py-3 rounded-xl font-black text-lg border border-indigo-100 group-hover:scale-105 transition-transform">
-                    #{compra.id_compra}
+                    #{compra?.id_compra || compra?.id || '000'}
                   </div>
                   <div>
                     <h4 className="font-bold text-gray-800 text-md">Orden de Ingreso</h4>
                     <div className="flex items-center text-sm text-gray-500 mt-1.5 gap-1.5 font-medium">
                       <Calendar size={14} className="text-indigo-400" />
-                      {new Date(compra.fecha_compra).toLocaleString('es-CO')}
+                      {formatearFecha(compra?.fecha_compra || compra?.fecha)}
                     </div>
                   </div>
                 </div>
@@ -62,7 +73,7 @@ export default function HistorialCompras() {
                   <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider block mb-1">Inversión Total</span>
                   <span className="font-black text-gray-900 text-xl flex items-center gap-1 justify-end">
                     <DollarSign size={18} className="text-indigo-500"/>
-                    {Number(compra.total_compra).toLocaleString('es-CO')}
+                    {Number(compra?.total_compra || compra?.total || 0).toLocaleString('es-CO')}
                   </span>
                 </div>
               </div>

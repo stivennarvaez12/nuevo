@@ -7,14 +7,14 @@ export default function Compras() {
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
 
-  // Cargar productos de la base de datos - URL corregida
+  // Cargar productos de la base de datos - URL unificada
   const cargarProductos = async () => {
     try {
       setLoading(true);
       const response = await fetch('https://nuevo-98vm.onrender.com/api/productos');
       if (response.ok) {
         const data = await response.json();
-        setProductos(data);
+        setProductos(Array.isArray(data) ? data : []);
       }
     } catch (error) {
       console.error("Error al cargar productos:", error);
@@ -29,8 +29,8 @@ export default function Compras() {
 
   // Filtrar productos
   const productosFiltrados = productos.filter(p => 
-    p.nombre.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    p.categoria.toLowerCase().includes(searchTerm.toLowerCase())
+    (p.nombre || "").toLowerCase().includes(searchTerm.toLowerCase()) || 
+    (p.categoria || "").toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   // Agregar al carrito de compras
@@ -56,10 +56,11 @@ export default function Compras() {
     }));
   };
 
-  // Modificar precio de costo
+  // CORREGIDO: Evita guardar strings vacíos en el precio de costo al manipular el input
   const cambiarPrecioCosto = (id, nuevoPrecio) => {
+    const valorNumerico = nuevoPrecio === '' ? 0 : Number(nuevoPrecio);
     setCarrito(carrito.map(item => 
-      item.id === id ? { ...item, precio_costo: Number(nuevoPrecio) } : item
+      item.id === id ? { ...item, precio_costo: valorNumerico } : item
     ));
   };
 
@@ -68,8 +69,8 @@ export default function Compras() {
     setCarrito(carrito.filter(item => item.id !== id));
   };
 
-  // Calcular total
-  const totalCompra = carrito.reduce((sum, item) => sum + (item.cantidad * item.precio_costo), 0);
+  // Calcular total seguro
+  const totalCompra = carrito.reduce((sum, item) => sum + (Number(item.cantidad || 0) * Number(item.precio_costo || 0)), 0);
 
   // Registrar la compra en el servidor
   const registrarCompra = async () => {
@@ -77,30 +78,36 @@ export default function Compras() {
     
     const sinPrecio = carrito.find(item => item.precio_costo <= 0);
     if (sinPrecio) {
-      return alert(`Por favor ingresa el precio de costo para: ${sinPrecio.nombre}`);
+      return alert(`Por favor ingresa un precio de costo válido para: ${sinPrecio.nombre}`);
     }
 
     const idUsuario = localStorage.getItem('id_usuario') || 1; 
 
     try {
-      // Ajustado 'total_compradecimal' para encajar perfectamente con tu backend
+      // CORREGIDO: Payload unificado mapeando explícitamente id como id_producto para blindar el backend
+      const comprasPayload = {
+        id_usuario: Number(idUsuario),
+        total_compradecimal: totalCompra,
+        carrito: carrito.map(item => ({
+          id_producto: item.id,
+          id: item.id,
+          cantidad: Number(item.cantidad),
+          precio_costo: Number(item.precio_costo)
+        }))
+      };
+
       const response = await fetch('https://nuevo-98vm.onrender.com/api/compras', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id_usuario: idUsuario,
-          total_compradecimal: totalCompra,
-          carrito: carrito
-        })
+        body: JSON.stringify(comprasPayload)
       });
 
       if (response.ok) {
-        alert("¡Compra registrada! El stock de los productos ha sido actualizado.");
+        alert("¡Compra registrada con éxito! El stock de los productos ha sido actualizado en MySQL. 📦");
         setCarrito([]); 
-        // Recargar productos usando la función limpia
         cargarProductos();
       } else {
-        alert("Error al registrar la compra.");
+        alert("Error al registrar la compra en el servidor.");
       }
     } catch (error) {
       console.error("Error en la transacción:", error);
@@ -135,6 +142,8 @@ export default function Compras() {
         <div className="flex-1 overflow-y-auto p-5 custom-scrollbar">
           {loading ? (
             <div className="text-center text-gray-400 py-10 animate-pulse">Cargando catálogo...</div>
+          ) : productosFiltrados.length === 0 ? (
+            <div className="text-center text-gray-400 py-10">No se encontraron productos coincidentes.</div>
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
               {productosFiltrados.map((prod) => (
@@ -145,7 +154,6 @@ export default function Compras() {
                 >
                   <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
                     {prod.imagen ? (
-                      // URL de render estandarizada para mostrar imágenes en la compra
                       <img src={`https://nuevo-98vm.onrender.com/uploads/${prod.imagen}`} alt={prod.nombre} className="w-12 h-12 object-cover rounded-full" />
                     ) : (
                       <Package size={24} className="text-gray-400" />
@@ -184,7 +192,7 @@ export default function Compras() {
                 <div className="flex justify-between items-start">
                   <div>
                     <h4 className="font-bold text-sm text-gray-800">{item.nombre}</h4>
-                    <span className="text-xs text-gray-500">Stock: {item.stock} &rarr; Quedará en: {item.stock + item.cantidad}</span>
+                    <span className="text-xs text-gray-500">Stock: {item.stock} &rarr; Quedará en: {Number(item.stock) + Number(item.cantidad)}</span>
                   </div>
                   <button onClick={() => eliminarDelCarrito(item.id)} className="text-red-400 hover:text-red-600 p-1">
                     <Trash2 size={16} />

@@ -250,7 +250,8 @@ app.post('/api/gastos', (req, res) => {
 // 5. CLIENTES
 // ==========================================
 app.get('/api/clientes', (req, res) => {
-    db.query("SELECT id_cliente, nombre, documento AS cedula, telefono, correo, direccion FROM clientes", (err, data) => {
+    // CORRECCIÓN: Se quitó el alias "AS cedula" para que mande "documento", tal como lo mapea el Frontend
+    db.query("SELECT id_cliente, nombre, documento, telefono, correo, direccion FROM clientes", (err, data) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json(data);
     });
@@ -269,7 +270,8 @@ app.post('/api/clientes', (req, res) => {
 // 6. COMPRAS
 // ==========================================
 app.get('/api/compras', (req, res) => {
-    db.query("SELECT id_compra, id_usuario, total_compradecimal AS total, fecha_compra FROM compras ORDER BY fecha_compra DESC", (err, data) => {
+    // SINCRONIZACIÓN: Enviamos tanto total como total_compra para evitar incompatibilidad con el renderizado del front
+    db.query("SELECT id_compra, id_usuario, total_compradecimal AS total, total_compradecimal AS total_compra, fecha_compra FROM compras ORDER BY fecha_compra DESC", (err, data) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json(data);
     });
@@ -316,7 +318,7 @@ app.get('/api/dashboard', (req, res) => {
 
 app.get('/', (req, res) => res.send('🚀 Servidor Licores Nicole v3.5 - ¡SRC/SERVER.JS EN VIVO!'));
 
-const PORT = process.env.PORT || 10000; // Render usa por defecto el puerto 10000 interno
+const PORT = process.env.PORT || 10000; 
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Servidor corriendo en puerto ${PORT}`);
 });

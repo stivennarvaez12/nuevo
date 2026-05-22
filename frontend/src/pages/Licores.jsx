@@ -9,8 +9,6 @@ export default function Licores() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
-  
-  // Estados para saber si estamos editando
   const [modoEdicion, setModoEdicion] = useState(false);
   const [idEditar, setIdEditar] = useState(null);
 
@@ -24,7 +22,7 @@ export default function Licores() {
   const fetchLicores = async () => {
     setLoading(true);
     try {
-      const response = await fetch('https://nuevo-98vm.onrender.com/productos');
+      const response = await fetch('https://nuevo-98vm.onrender.com/api/productos');
       if (!response.ok) throw new Error('Error al conectar');
       const data = await response.json();
       setLicores(data);
@@ -51,7 +49,6 @@ export default function Licores() {
     }
   };
 
-  // Función para abrir el modal listo para editar
   const abrirModalEditar = (licor) => {
     setModoEdicion(true);
     setIdEditar(licor.id);
@@ -66,7 +63,6 @@ export default function Licores() {
     setIsModalOpen(true);
   };
 
-  // Función para abrir el modal en modo "Agregar nuevo"
   const abrirModalNuevo = () => {
     setModoEdicion(false);
     setIdEditar(null);
@@ -76,7 +72,6 @@ export default function Licores() {
     setIsModalOpen(true);
   };
 
-  // Guarda Nuevo O Actualizar Existente
   const guardarLicor = async (e) => {
     e.preventDefault();
     
@@ -90,8 +85,8 @@ export default function Licores() {
     }
 
     const url = modoEdicion 
-      ? `https://nuevo-98vm.onrender.com/productos/${idEditar}` 
-      : 'https://nuevo-98vm.onrender.com/productos';
+      ? `https://nuevo-98vm.onrender.com/api/productos/${idEditar}` 
+      : 'https://nuevo-98vm.onrender.com/api/productos';
       
     const method = modoEdicion ? 'PUT' : 'POST';
 
@@ -99,7 +94,7 @@ export default function Licores() {
       const response = await fetch(url, { method: method, body: formData });
 
       if (response.ok) {
-        alert(modoEdicion ? "¡Licor actualizado con éxito!" : "¡Licor agregado con éxito!");
+        alert(modoEdicion ? "¡Licor actualizado con éxito! 🍾" : "¡Licor agregado con éxito! 🥃");
         setIsModalOpen(false); 
         fetchLicores(); 
       } else {
@@ -113,7 +108,7 @@ export default function Licores() {
   const eliminarLicor = async (id, nombre) => {
     if (window.confirm(`¿Seguro que quieres eliminar "${nombre}"?`)) {
       try {
-        const res = await fetch(`https://nuevo-98vm.onrender.com/productos/${id}`, { method: 'DELETE' });
+        const res = await fetch(`https://nuevo-98vm.onrender.com/api/productos/${id}`, { method: 'DELETE' });
         if (res.ok) {
           setLicores(licores.filter(l => l.id !== id));
         }
@@ -124,8 +119,8 @@ export default function Licores() {
   };
 
   const licoresFiltrados = licores.filter(licor =>
-    licor.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    licor.categoria.toLowerCase().includes(searchTerm.toLowerCase())
+    (licor.nombre || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (licor.categoria || "").toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -164,6 +159,11 @@ export default function Licores() {
           <div className="p-20 flex flex-col items-center gap-4 text-gray-400">
             <div className="w-12 h-12 border-4 border-black border-t-transparent rounded-full animate-spin"></div>
             <p className="font-bold uppercase tracking-widest text-xs">Sincronizando con MySQL...</p>
+          </div>
+        ) : licoresFiltrados.length === 0 ? (
+          <div className="p-20 flex flex-col items-center gap-4 text-gray-400">
+            <Wine size={48} className="opacity-20" />
+            <p className="text-sm font-medium">No hay licores registrados en el inventario.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">

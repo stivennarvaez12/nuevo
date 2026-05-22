@@ -14,7 +14,7 @@ export default function Gastos() {
       const response = await fetch('https://nuevo-98vm.onrender.com/api/gastos');
       if (response.ok) {
         const data = await response.json();
-        setGastos(data);
+        setGastos(Array.isArray(data) ? data : []);
       }
     } catch (error) {
       console.error("Error al cargar gastos:", error);
@@ -43,7 +43,7 @@ export default function Gastos() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           id_usuario: idUsuario,
-          descripcion: descripcion,
+          descripcion: descripcion.trim(),
           monto: Number(monto)
         })
       });
@@ -62,8 +62,8 @@ export default function Gastos() {
     }
   };
 
-  // Calcular el total de dinero gastado
-  const totalGastos = gastos.reduce((sum, item) => sum + Number(item.monto), 0);
+  // CORREGIDO: Evita valores nulos o indefinidos que puedan romper la suma total
+  const totalGastos = gastos.reduce((sum, item) => sum + Number(item.monto || 0), 0);
 
   return (
     <div className="flex flex-col lg:flex-row gap-6 h-[calc(100vh-6rem)] animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -152,7 +152,7 @@ export default function Gastos() {
                       <div className="flex items-center text-xs text-gray-500 mt-1 gap-1">
                         <Calendar size={12} />
                         {gasto.fecha || gasto.fecha_gasto ? (
-                          new Date(gasto.fecha || gasto.fecha_gasto).toLocaleString('es-CO')
+                          new Date(gasto.fecha || gasto.fecha_gasto).toLocaleString('es-CO', { timeZone: 'America/Bogota' })
                         ) : (
                           "Fecha no disponible"
                         )}
@@ -161,7 +161,7 @@ export default function Gastos() {
                   </div>
                   <div className="text-right">
                     <span className="font-black text-red-600 text-lg">
-                      -${Number(gasto.monto).toLocaleString('es-CO')}
+                      -${Number(gasto.monto || 0).toLocaleString('es-CO')}
                     </span>
                   </div>
                 </div>

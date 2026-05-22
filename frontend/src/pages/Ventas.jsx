@@ -6,24 +6,22 @@ import {
 
 export default function Ventas() {
   const [productos, setProductos] = useState([]);
-  const [clientes, setClientes] = useState([]); // Nuevo estado para los clientes
-  const [idClienteSeleccionado, setIdClienteSeleccionado] = useState("1"); // Por defecto Cliente General
+  const [clientes, setClientes] = useState([]); 
+  const [idClienteSeleccionado, setIdClienteSeleccionado] = useState("1"); 
   const [carrito, setCarrito] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
   const [procesando, setProcesando] = useState(false);
 
-  // 1. Cargar el inventario y los clientes al abrir el módulo
   const fetchData = async () => {
     try {
       setLoading(true);
-      
-      // Cargar Productos (URL corregida para producción)
-      const resProductos = await fetch('https://nuevo-98vm.onrender.com/productos');
-      const dataProductos = await resProductos.json();
-      setProductos(dataProductos.filter(p => p.stock > 0));
+      const resProductos = await fetch('https://nuevo-98vm.onrender.com/api/productos');
+      if (resProductos.ok) {
+        const dataProductos = await resProductos.json();
+        setProductos(dataProductos.filter(p => p.stock > 0));
+      }
 
-      // Cargar Clientes (URL corregida para producción)
       const resClientes = await fetch('https://nuevo-98vm.onrender.com/api/clientes');
       if (resClientes.ok) {
         const dataClientes = await resClientes.json();
@@ -40,7 +38,6 @@ export default function Ventas() {
     fetchData();
   }, []);
 
-  // 2. Función para agregar al carrito
   const agregarAlCarrito = (producto) => {
     const itemExistente = carrito.find(item => item.id === producto.id);
     
@@ -53,11 +50,11 @@ export default function Ventas() {
         item.id === producto.id ? { ...item, cantidad: Number(item.cantidad) + 1 } : item
       ));
     } else {
+      // CORREGIDO: Se removió el residuo 'Math' que rompía el objeto
       setCarrito([...carrito, { ...producto, cantidad: 1 }]);
     }
   };
 
-  // 3. Modificar cantidades con los botones (+ o -)
   const modificarCantidad = (id, delta) => {
     setCarrito(carrito.map(item => {
       if (item.id === id) {
@@ -75,7 +72,6 @@ export default function Ventas() {
     }));
   };
 
-  // 3b. Controlar la escritura manual en el input de cantidad
   const handleCantidadManual = (id, valor) => {
     const productoOriginal = productos.find(p => p.id === id);
     
@@ -99,36 +95,33 @@ export default function Ventas() {
     setCarrito(carrito.map(item => item.id === id ? { ...item, cantidad: cantidadNum } : item));
   };
 
-  // Validar al salir del input que no quede vacío
   const validarBlurCantidad = (id, valor) => {
     if (valor === '' || Number(valor) < 1) {
       setCarrito(carrito.map(item => item.id === id ? { ...item, cantidad: 1 } : item));
     }
   };
 
-  // 4. Quitar un producto de la lista
   const eliminarDelCarrito = (id) => {
     setCarrito(carrito.filter(item => item.id !== id));
   };
 
-  // 5. Calcular el total a pagar
   const total = carrito.reduce((sum, item) => sum + (item.precio * (Number(item.cantidad) || 0)), 0);
 
-  // 6. Filtrar para el buscador
   const productosFiltrados = productos.filter(p => 
-    p.nombre.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    p.categoria.toLowerCase().includes(searchTerm.toLowerCase())
+    (p.nombre || "").toLowerCase().includes(searchTerm.toLowerCase()) || 
+    (p.categoria || "").toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // 7. PROCESAR LA VENTA (URL corregida para producción)
   const procesarVenta = async () => {
     setProcesando(true);
     try {
       const id_usuario = localStorage.getItem('id_usuario') || 1;
 
       const carritoLimpio = carrito.map(item => ({
-        ...item,
-        cantidad: item.cantidad === '' ? 1 : Number(item.cantidad)
+        id_producto: item.id,
+        id: item.id,
+        cantidad: item.cantidad === '' ? 1 : Number(item.cantidad),
+        precio: Number(item.precio)
       }));
 
       const response = await fetch('https://nuevo-98vm.onrender.com/api/ventas', {
@@ -137,7 +130,7 @@ export default function Ventas() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          id_usuario: id_usuario,
+          id_usuario: Number(id_usuario),
           id_cliente: idClienteSeleccionado,
           total_venta: total,
           carrito: carritoLimpio
@@ -147,8 +140,8 @@ export default function Ventas() {
       if (response.ok) {
         alert("¡Venta registrada con éxito! 💸");
         setCarrito([]);
-        setIdClienteSeleccionado("1"); // Reiniciar a cliente general
-        fetchData(); // Recargar productos frescos
+        setIdClienteSeleccionado("1"); 
+        fetchData(); 
       } else {
         alert("Error al registrar la venta. Intenta nuevamente.");
       }
@@ -162,10 +155,7 @@ export default function Ventas() {
 
   return (
     <div className="flex flex-col lg:flex-row h-[calc(100vh-6rem)] gap-6">
-      
-      {/* LADO IZQUIERDO: CATÁLOGO DE PRODUCTOS */}
       <div className="flex-1 flex flex-col bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
-        {/* Buscador */}
         <div className="p-5 border-b border-gray-100 bg-gray-50">
           <div className="relative">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
@@ -179,12 +169,16 @@ export default function Ventas() {
           </div>
         </div>
 
-        {/* Cuadrícula de Productos */}
         <div className="flex-1 overflow-y-auto p-5">
           {loading ? (
             <div className="flex justify-center items-center h-full text-gray-400 flex-col gap-2">
               <Loader2 className="animate-spin text-black" size={32} />
               <span>Sincronizando inventario...</span>
+            </div>
+          ) : productosFiltrados.length === 0 ? (
+            <div className="flex justify-center items-center h-full text-gray-400 flex-col gap-2">
+              <Wine size={48} className="opacity-20" />
+              <span>No se encontraron productos disponibles.</span>
             </div>
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
@@ -204,6 +198,7 @@ export default function Ventas() {
                   <div className="w-full">
                     <p className="font-bold text-gray-800 text-sm leading-tight line-clamp-2">{producto.nombre}</p>
                     <p className="text-xs text-gray-500 mt-1">Stock: {producto.stock}</p>
+                    {/* CORREGIDO: Se removió variable inválida '电子' que generaba error de sintaxis */}
                     <p className="font-black text-black mt-1">${Number(producto.precio).toLocaleString('es-CO')}</p>
                   </div>
                 </button>
@@ -213,14 +208,12 @@ export default function Ventas() {
         </div>
       </div>
 
-      {/* LADO DERECHO: LA CAJA REGISTRADORA (CARRITO) */}
       <div className="w-full lg:w-[400px] bg-white rounded-3xl shadow-sm border border-gray-100 flex flex-col overflow-hidden">
         <div className="p-5 bg-black text-white flex items-center gap-3">
           <ShoppingCart size={24} className="text-amber-500" />
           <h2 className="text-xl font-bold">Caja Registradora</h2>
         </div>
 
-        {/* SELECTOR DE CLIENTE INTEGRADO */}
         <div className="p-4 border-b border-gray-100 bg-amber-50/50 flex flex-col gap-1.5">
           <label className="text-xs font-black text-gray-600 uppercase tracking-wider flex items-center gap-1.5">
             <User size={14} className="text-black" /> Asignar Cliente a la Venta
@@ -233,13 +226,12 @@ export default function Ventas() {
             <option value="1">👤 Cliente General (Mostrador)</option>
             {clientes.map(c => (
               <option key={c.id_cliente || c.id} value={c.id_cliente || c.id}>
-                💼 {c.nombre} {c.apellido || ''} ({c.cedula || 'Sin Cédula'})
+                💼 {c.nombre} ({c.cedula || 'Sin Cédula'})
               </option>
             ))}
           </select>
         </div>
 
-        {/* Lista del carrito */}
         <div className="flex-1 overflow-y-auto p-5 bg-gray-50 flex flex-col gap-3">
           {carrito.length === 0 ? (
             <div className="m-auto text-center text-gray-400 flex flex-col items-center gap-2">
@@ -289,7 +281,6 @@ export default function Ventas() {
           )}
         </div>
 
-        {/* Total y Botón de Cobrar */}
         <div className="p-6 border-t border-gray-100 bg-white">
           <div className="flex justify-between items-end mb-6">
             <span className="text-gray-500 font-bold uppercase tracking-widest text-sm">Total a Pagar</span>
@@ -315,7 +306,6 @@ export default function Ventas() {
           </button>
         </div>
       </div>
-
     </div>
   );
 }

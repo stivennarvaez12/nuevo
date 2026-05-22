@@ -11,15 +11,21 @@ const Usuarios = () => {
 
   const cargarDatos = async () => {
     try {
-      // Endpoint de usuarios corregido
+      // Endpoint de usuarios unificado
       const resU = await fetch('https://nuevo-98vm.onrender.com/api/usuarios');
-      const dataU = await resU.json();
-      setUsuarios(dataU);
+      if (resU.ok) {
+        const dataU = await resU.json();
+        // BLINDAJE: Nos aseguramos de que siempre sea un arreglo válido
+        setUsuarios(Array.isArray(dataU) ? dataU : []);
+      }
 
-      // Endpoint de roles corregido
+      // Endpoint de roles unificado
       const resR = await fetch('https://nuevo-98vm.onrender.com/api/roles');
-      const dataR = await resR.json();
-      setRoles(dataR);
+      if (resR.ok) {
+        const dataR = await resR.json();
+        // BLINDAJE: Nos aseguramos de que siempre sea un arreglo válido
+        setRoles(Array.isArray(dataR) ? dataR : []);
+      }
     } catch (error) {
       console.error("Error cargando datos:", error);
     }
@@ -34,7 +40,7 @@ const Usuarios = () => {
     if (!idRol) return alert("Selecciona un rol");
 
     try {
-      // Endpoint de registro corregido
+      // Endpoint de registro unificado
       const res = await fetch('https://nuevo-98vm.onrender.com/api/usuarios', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -42,9 +48,11 @@ const Usuarios = () => {
       });
 
       if (res.ok) {
-        alert("Usuario registrado");
+        alert("¡Usuario registrado con éxito! 👤");
         setNombre(''); setEmail(''); setPassword(''); setIdRol('');
         cargarDatos();
+      } else {
+        alert("Error al registrar el usuario");
       }
     } catch (error) {
       alert("Error en el servidor");
@@ -52,10 +60,19 @@ const Usuarios = () => {
   };
 
   const eliminar = async (id) => {
-    if (window.confirm("¿Eliminar este usuario?")) {
-      // Endpoint de eliminación corregido
-      await fetch(`https://nuevo-98vm.onrender.com/api/usuarios/${id}`, { method: 'DELETE' });
-      cargarDatos();
+    if (window.confirm("¿Seguro que deseas eliminar este usuario?")) {
+      try {
+        // Endpoint de eliminación unificado
+        const res = await fetch(`https://nuevo-98vm.onrender.com/api/usuarios/${id}`, { method: 'DELETE' });
+        if (res.ok) {
+          alert("Usuario eliminado correctamente");
+          cargarDatos();
+        } else {
+          alert("Error al eliminar el usuario");
+        }
+      } catch (error) {
+        alert("Error de conexión");
+      }
     }
   };
 
@@ -97,7 +114,11 @@ const Usuarios = () => {
                 value={idRol} onChange={e => setIdRol(e.target.value)} required
               >
                 <option value="">Seleccionar Rol</option>
-                {roles.map(r => <option key={r.id_rol} value={r.id_rol}>{r.nombre_rol}</option>)}
+                {roles.map(r => (
+                  <option key={r.id_rol || r.id} value={r.id_rol || r.id}>
+                    {r.nombre_rol || r.nombre || "Rol Desconocido"}
+                  </option>
+                ))}
               </select>
             </div>
             <button className="w-full py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100">
@@ -114,25 +135,29 @@ const Usuarios = () => {
             </h2>
           </div>
           <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-            {usuarios.map((u) => (
-              <div key={u.id_usuario} className="p-4 bg-gray-50 rounded-2xl border border-gray-100 flex justify-between items-center">
-                <div className="flex gap-3">
-                  <div className="p-3 bg-indigo-100 text-indigo-600 rounded-xl">
-                    <User size={20} />
+            {usuarios.length === 0 ? (
+              <p className="text-sm text-gray-400 col-span-2 text-center py-4">No hay empleados registrados activos.</p>
+            ) : (
+              usuarios.map((u) => (
+                <div key={u.id_usuario || u.id} className="p-4 bg-gray-50 rounded-2xl border border-gray-100 flex justify-between items-center">
+                  <div className="flex gap-3">
+                    <div className="p-3 bg-indigo-100 text-indigo-600 rounded-xl">
+                      <User size={20} />
+                    </div>
+                    <div>
+                      <p className="font-bold text-gray-800 leading-tight">{u.nombre || "Sin Nombre"}</p>
+                      <p className="text-[11px] text-gray-400">{u.email || "Sin Correo"}</p>
+                      <span className="text-[9px] font-black uppercase px-2 py-0.5 bg-white border border-gray-200 rounded-md text-indigo-500 mt-1 inline-block">
+                        {u.nombre_rol || u.rol || 'Empleado'}
+                      </span>
+                    </div>
                   </div>
-                  <div>
-                    <p className="font-bold text-gray-800 leading-tight">{u.nombre}</p>
-                    <p className="text-[11px] text-gray-400">{u.email}</p>
-                    <span className="text-[9px] font-black uppercase px-2 py-0.5 bg-white border border-gray-200 rounded-md text-indigo-500">
-                      {u.nombre_rol}
-                    </span>
-                  </div>
+                  <button onClick={() => eliminar(u.id_usuario || u.id)} className="text-red-400 hover:text-red-600 p-2 transition-colors">
+                    <Trash2 size={18} />
+                  </button>
                 </div>
-                <button onClick={() => eliminar(u.id_usuario)} className="text-red-400 hover:text-red-600 p-2">
-                  <Trash2 size={18} />
-                </button>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
       </div>

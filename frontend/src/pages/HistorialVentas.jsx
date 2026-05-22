@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Receipt, Calendar, Search, FileText, Eye, X, Package, User, Printer, Share2, Mail } from 'lucide-react';
 
 export default function HistorialVentas() {
@@ -19,7 +19,7 @@ export default function HistorialVentas() {
         const response = await fetch('https://nuevo-98vm.onrender.com/api/ventas');
         if (response.ok) {
           const data = await response.json();
-          setVentas(data);
+          setVentas(Array.isArray(data) ? data : []);
         }
       } catch (error) {
         console.error("Error al cargar el historial:", error);
@@ -36,10 +36,10 @@ export default function HistorialVentas() {
     setShowModal(true);
     setLoadingDetalle(true);
     try {
-      const response = await fetch(`https://nuevo-98vm.onrender.com/api/ventas/${venta.id}/detalle`);
+      const response = await fetch(`https://nuevo-98vm.onrender.com/api/ventas/${venta?.id}/detalle`);
       if (response.ok) {
         const data = await response.json();
-        setDetalles(data);
+        setDetalles(Array.isArray(data) ? data : []);
       }
     } catch (error) {
       console.error("Error al obtener detalles:", error);
@@ -48,15 +48,32 @@ export default function HistorialVentas() {
     }
   };
 
+  // Formatear fechas
+  const formatearFecha = (fechaOriginal) => {
+    if (!fechaOriginal) return "Fecha no disponible";
+    const fecha = new Date(fechaOriginal);
+    return fecha.toLocaleString('es-CO', { 
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
   // --- FUNCIONES DE COMPARTIR Y EMISIÓN ---
 
   // 1. IMPRIMIR RECIBO (Formato Ticket Térmico)
   const handleImprimir = () => {
     const ventanaImpresion = window.open('', '_blank');
+    if (!ventanaImpresion) return;
     
-    const listaProductos = detalles.map(det => 
-      `${det.nombre.padEnd(20, ' ')} x${det.cantidad.toString().padStart(2, ' ')}  $${(det.cantidad * det.precio).toLocaleString('es-CO')}`
-    ).join('\n');
+    const listaProductos = detalles.map(det => {
+      const nombreProd = (det?.nombre || 'Producto').padEnd(20, ' ');
+      const cantProd = (det?.cantidad || 0).toString().padStart(2, ' ');
+      const totalItem = ((det?.cantidad || 0) * (det?.precio || 0)).toLocaleString('es-CO');
+      return `${nombreProd} x${cantProd}  $${totalItem}`;
+    }).join('\n');
 
     ventanaImpresion.document.write(`
       <html>
@@ -74,16 +91,16 @@ export default function HistorialVentas() {
           <div class="text-center">
             <strong>LICORES NICOLE</strong><br>
             ¡Tu licorera de confianza!<br>
-            Recibo: #${selectedVenta?.id.toString().padStart(5, '0')}<br>
+            Recibo: #${selectedVenta?.id?.toString().padStart(5, '0') || '00000'}<br>
             Fecha: ${formatearFecha(selectedVenta?.fecha)}<br>
           </div>
           <div class="linea"></div>
           <div>Cajero: ${selectedVenta?.cajero || 'Sistema'}</div>
-          <div>Cliente: ${selectedVenta?.cliente}</div>
+          <div>Cliente: ${selectedVenta?.cliente || 'General'}</div>
           <div class="linea"></div>
           <pre style="margin:0; font-family:inherit;">${listaProductos}</pre>
           <div class="linea"></div>
-          <div class="text-right total">TOTAL: $${Number(selectedVenta?.total).toLocaleString('es-CO')}</div>
+          <div class="text-right total">TOTAL: $${Number(selectedVenta?.total || 0).toLocaleString('es-CO')}</div>
           <div class="linea"></div>
           <div class="text-center" style="margin-top:15px;">¡Gracias por tu compra!</div>
         </body>
@@ -100,65 +117,55 @@ export default function HistorialVentas() {
     let mensaje = `*LICORES NICOLE* 🍾\n`;
     mensaje += `*Detalle de tu Compra* 🧾\n`;
     mensaje += `---------------------------\n`;
-    mensaje += `*Recibo:* #${selectedVenta?.id.toString().padStart(5, '0')}\n`;
+    mensaje += `*Recibo:* #${selectedVenta?.id?.toString().padStart(5, '0') || '00000'}\n`;
     mensaje += `*Fecha:* ${formatearFecha(selectedVenta?.fecha)}\n`;
-    mensaje += `*Cliente:* ${selectedVenta?.cliente}\n`;
+    mensaje += `*Cliente:* ${selectedVenta?.cliente || 'General'}\n`;
     mensaje += `---------------------------\n`;
     
     detalles.forEach(det => {
-      window.log || console.log(det);
-      mensaje += `• ${det.nombre} (x${det.cantidad}) - $${(det.cantidad * det.precio).toLocaleString('es-CO')}\n`;
+      const subtotal = (det?.cantidad || 0) * (det?.precio || 0);
+      mensaje += `• ${det?.nombre || 'Producto'} (x${det?.cantidad || 0}) - $${subtotal.toLocaleString('es-CO')}\n`;
     });
     
     mensaje += `---------------------------\n`;
-    mensaje += `*TOTAL PAGADO:* $${Number(selectedVenta?.total).toLocaleString('es-CO')}\n\n`;
+    mensaje += `*TOTAL PAGADO:* $${Number(selectedVenta?.total || 0).toLocaleString('es-CO')}\n\n`;
     mensaje += `¡Muchas gracias por elegirnos! 🙌`;
 
     const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(mensaje)}`;
     window.open(url, '_blank');
   };
 
-  // 3. ENVIAR POR CORREO ELECTRONICO
+  // 3. ENVIAR POR CORREO ELECTRÓNICO
   const handleCorreo = () => {
-    const asunto = encodeURIComponent(`Recibo de Compra #${selectedVenta?.id.toString().padStart(5, '0')} - Licores Nicole`);
+    const asunto = encodeURIComponent(`Recibo de Compra #${selectedVenta?.id?.toString().padStart(5, '0') || '00000'} - Licores Nicole`);
     
-    let cuerpo = `Hola ${selectedVenta?.cliente},\n\n`;
+    let cuerpo = `Hola ${selectedVenta?.cliente || 'Cliente'},\n\n`;
     cuerpo += `Adjuntamos el resumen de tu compra realizada en Licores Nicole:\n\n`;
-    cuerpo += `N° Recibo: #${selectedVenta?.id.toString().padStart(5, '0')}\n`;
+    cuerpo += `N° Recibo: #${selectedVenta?.id?.toString().padStart(5, '0') || '00000'}\n`;
     cuerpo += `Fecha: ${formatearFecha(selectedVenta?.fecha)}\n`;
     cuerpo += `Atendido por: ${selectedVenta?.cajero || 'Sistema'}\n`;
     cuerpo += `=====================================\n`;
     
     detalles.forEach(det => {
-      cuerpo += `${det.nombre} x${det.cantidad} -- $${(det.cantidad * det.precio).toLocaleString('es-CO')}\n`;
+      const subtotal = (det?.cantidad || 0) * (det?.precio || 0);
+      cuerpo += `${det?.nombre || 'Producto'} x${det?.cantidad || 0} -- $${subtotal.toLocaleString('es-CO')}\n`;
     });
     
     cuerpo += `=====================================\n`;
-    cuerpo += `TOTAL NETO: $${Number(selectedVenta?.total).toLocaleString('es-CO')}\n\n`;
+    cuerpo += `TOTAL NETO: $${Number(selectedVenta?.total || 0).toLocaleString('es-CO')}\n\n`;
     cuerpo += `¡Gracias por visitarnos!\nLicores Nicole`;
 
     window.location.href = `mailto:?subject=${asunto}&body=${encodeURIComponent(cuerpo)}`;
   };
 
-
-  // Filtrar ventas por ID o por Nombre de Cliente
-  const ventasFiltradas = ventas.filter(v => 
-    v.id.toString().includes(searchTerm) || 
-    v.cliente.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  // Formatear fechas
-  const formatearFecha = (fechaOriginal) => {
-    if (!fechaOriginal) return "Fecha no disponible";
-    const fecha = new Date(fechaOriginal);
-    return fecha.toLocaleString('es-CO', { 
-      year: 'numeric', 
-      month: 'short', 
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
+  // BLINDAJE CRÍTICO: Filtrar ventas evaluando de forma segura que existan id y cliente
+  const ventasFiltradas = ventas.filter(v => {
+    const idVenta = v?.id ? v.id.toString() : "";
+    const nombreCliente = v?.cliente ? v.cliente.toLowerCase() : "";
+    const busqueda = searchTerm.toLowerCase();
+    
+    return idVenta.includes(busqueda) || nombreCliente.includes(busqueda);
+  });
 
   return (
     <div className="relative space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -215,22 +222,22 @@ export default function HistorialVentas() {
               </thead>
               <tbody>
                 {ventasFiltradas.map((venta) => (
-                  <tr key={venta.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
+                  <tr key={venta?.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
                     <td className="p-4 font-black text-gray-800">
-                      #{venta.id.toString().padStart(5, '0')}
+                      #{venta?.id?.toString().padStart(5, '0') || '00000'}
                     </td>
                     <td className="p-4 text-gray-600 flex items-center gap-2 text-sm font-medium">
                       <Calendar size={16} className="text-gray-400" />
-                      {formatearFecha(venta.fecha)}
+                      {formatearFecha(venta?.fecha)}
                     </td>
                     <td className="p-4 text-gray-900 font-bold text-sm">
-                      {venta.cliente}
+                      {venta?.cliente || 'Cliente General'}
                     </td>
                     <td className="p-4 text-gray-600 text-sm font-medium flex items-center gap-1">
-                      <User size={14} className="text-gray-400" /> {venta.cajero || 'Sistema'}
+                      <User size={14} className="text-gray-400" /> {venta?.cajero || 'Sistema'}
                     </td>
                     <td className="p-4 font-black text-emerald-600 text-right text-lg">
-                      ${Number(venta.total).toLocaleString('es-CO')}
+                      ${Number(venta?.total || 0).toLocaleString('es-CO')}
                     </td>
                     <td className="p-4 text-center">
                       <button 
@@ -261,8 +268,8 @@ export default function HistorialVentas() {
                   <Receipt size={24} />
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold">Recibo #{selectedVenta?.id.toString().padStart(5, '0')}</h3>
-                  <p className="text-gray-400 text-xs uppercase tracking-widest font-semibold">Cliente: {selectedVenta?.cliente}</p>
+                  <h3 className="text-xl font-bold">Recibo #{selectedVenta?.id?.toString().padStart(5, '0') || '00000'}</h3>
+                  <p className="text-gray-400 text-xs uppercase tracking-widest font-semibold">Cliente: {selectedVenta?.cliente || 'General'}</p>
                 </div>
               </div>
               <button 
@@ -277,7 +284,7 @@ export default function HistorialVentas() {
             <div className="p-6">
               <div className="flex items-center justify-between mb-6 text-sm text-gray-500 border-b border-dashed pb-4">
                 <span className="flex items-center gap-1"><Calendar size={14}/> {formatearFecha(selectedVenta?.fecha)}</span>
-                <span className="font-bold text-gray-900">Atendido por: {selectedVenta?.cajero}</span>
+                <span className="font-bold text-gray-900">Atendido por: {selectedVenta?.cajero || 'Sistema'}</span>
               </div>
 
               {loadingDetalle ? (
@@ -294,12 +301,12 @@ export default function HistorialVentas() {
                             <Package size={18} />
                           </div>
                           <div>
-                            <p className="font-bold text-gray-800">{det.nombre}</p>
-                            <p className="text-xs text-gray-500">{det.cantidad} unidad(es) x ${Number(det.precio).toLocaleString()}</p>
+                            <p className="font-bold text-gray-800">{det?.nombre || 'Producto'}</p>
+                            <p className="text-xs text-gray-500">{det?.cantidad || 0} unidad(es) x ${Number(det?.precio || 0).toLocaleString()}</p>
                           </div>
                         </div>
                         <p className="font-black text-gray-900">
-                          ${(det.cantidad * det.precio).toLocaleString()}
+                          ${((det?.cantidad || 0) * (det?.precio || 0)).toLocaleString()}
                         </p>
                       </div>
                     ))}
@@ -309,7 +316,7 @@ export default function HistorialVentas() {
                   <div className="mt-6 bg-emerald-50 p-4 rounded-2xl flex justify-between items-center border border-emerald-100">
                     <span className="text-emerald-800 font-bold text-lg">Total Pagado:</span>
                     <span className="text-emerald-700 font-black text-2xl">
-                      ${Number(selectedVenta?.total).toLocaleString('es-CO')}
+                      ${Number(selectedVenta?.total || 0).toLocaleString('es-CO')}
                     </span>
                   </div>
 

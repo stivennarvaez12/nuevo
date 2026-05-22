@@ -11,11 +11,18 @@ export default function DashboardHome() {
 
   const fetchStats = async () => {
     try {
-      // URL corregida para conectar directamente con producción en Render
+      setLoading(true);
+      // URL unificada para conectar directamente con producción en Render
       const response = await fetch('https://nuevo-98vm.onrender.com/api/dashboard');
       if (response.ok) {
         const data = await response.json();
-        setStatsData(data);
+        
+        // CORREGIDO: Blindaje contra datos nulos o respuestas inesperadas del backend
+        setStatsData({
+          totalIngresos: data?.totalIngresos ?? 0,
+          totalProductos: data?.totalProductos ?? 0,
+          alertasStock: Array.isArray(data?.alertasStock) ? data.alertasStock : []
+        });
       }
     } catch (error) {
       console.error("Error al obtener estadísticas:", error);
@@ -28,6 +35,9 @@ export default function DashboardHome() {
     fetchStats();
   }, []);
 
+  // Variables de lectura seguras basadas en el estado protegido
+  const listaAlertas = statsData.alertasStock || [];
+
   const stats = [
     { 
       title: 'Ventas Totales', 
@@ -37,15 +47,15 @@ export default function DashboardHome() {
     },
     { 
       title: 'Licores Registrados', 
-      value: loading ? '...' : statsData.totalProductos.toString(), 
+      value: loading ? '...' : Number(statsData.totalProductos).toString(), 
       icon: <Package className="text-blue-500" />, 
       bg: 'bg-blue-50' 
     },
     { 
       title: 'Alertas de Stock', 
-      value: loading ? '...' : statsData.alertasStock.length.toString(), 
-      icon: <AlertTriangle className={statsData.alertasStock.length > 0 ? "text-red-500" : "text-gray-400"} />, 
-      bg: statsData.alertasStock.length > 0 ? 'bg-red-50' : 'bg-gray-50' 
+      value: loading ? '...' : listaAlertas.length.toString(), 
+      icon: <AlertTriangle className={listaAlertas.length > 0 ? "text-red-500" : "text-gray-400"} />, 
+      bg: listaAlertas.length > 0 ? 'bg-red-50' : 'bg-gray-50' 
     },
     { 
       title: 'Clientes (Próximamente)', 
@@ -84,16 +94,16 @@ export default function DashboardHome() {
       {/* ZONA DE ALERTAS AJUSTADA PARA PANTALLAS PEQUEÑAS */}
       <div className="mt-6 bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         <div className="p-4 sm:p-5 border-b border-gray-100 bg-gray-50 flex items-center gap-3">
-          <AlertTriangle className={statsData.alertasStock.length > 0 ? "text-red-500" : "text-gray-400"} size={20} />
+          <AlertTriangle className={listaAlertas.length > 0 ? "text-red-500" : "text-gray-400"} size={20} />
           <h2 className="font-bold text-sm sm:text-base md:text-lg text-gray-800">Bebidas a punto de agotarse (Stock crítico: 5 o menos)</h2>
         </div>
         
         <div className="overflow-x-auto">
           {loading ? (
-            <div className="p-8 text-center text-gray-400 text-sm">Cargando inventario...</div>
-          ) : statsData.alertasStock.length === 0 ? (
+            <div className="p-8 text-center text-gray-400 text-sm animate-pulse">Cargando inventario...</div>
+          ) : listaAlertas.length === 0 ? (
             <div className="p-8 text-center text-gray-500 font-medium text-sm">
-              ¡Todo excelente! No tienes productos con bajo stock por ahora.
+              ¡Todo excelente! No tienes productos con bajo stock por ahora. ✨
             </div>
           ) : (
             <table className="w-full text-left border-collapse min-w-[500px] md:min-w-full">
@@ -105,13 +115,13 @@ export default function DashboardHome() {
                 </tr>
               </thead>
               <tbody>
-                {statsData.alertasStock.map((item, index) => (
-                  <tr key={index} className="border-b border-gray-50 hover:bg-gray-50 transition-colors text-sm">
+                {listaAlertas.map((item, index) => (
+                  <tr key={item.id || index} className="border-b border-gray-50 hover:bg-gray-50 transition-colors text-sm">
                     <td className="p-4 font-bold text-gray-800">{item.nombre}</td>
                     <td className="p-4 font-black text-red-500">{item.stock} unidades</td>
                     <td className="p-4">
                       <span className="bg-red-100 text-red-600 px-2.5 py-1 rounded-lg text-[10px] sm:text-xs font-bold uppercase tracking-wider inline-block">
-                        Contactar Proveedor
+                        Reordenar Mercancía
                       </span>
                     </td>
                   </tr>
@@ -125,7 +135,7 @@ export default function DashboardHome() {
       {/* FOOTER DE ESTADO */}
       <div className="mt-6 p-4 bg-gray-100 rounded-xl border border-dashed border-gray-300 text-center">
         <p className="text-[10px] sm:text-xs text-gray-400 uppercase font-bold tracking-widest">
-          Estado de Conexión: <span className="text-green-500 underline">Dashboard sincronizado con DB</span>
+          Estado del Sistema: <span className="text-green-500 font-black">Dashboard en tiempo real con Aiven MySQL</span>
         </p>
       </div>
 

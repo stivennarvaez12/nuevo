@@ -12,8 +12,11 @@ const Roles = () => {
     try {
       setLoading(true);
       const res = await fetch('https://nuevo-98vm.onrender.com/api/roles');
-      const data = await res.json();
-      setRoles(data);
+      if (res.ok) {
+        const data = await res.json();
+        // BLINDAJE: Garantizamos que siempre sea un array válido
+        setRoles(Array.isArray(data) ? data : []);
+      }
     } catch (err) {
       console.error("Error al cargar roles:", err);
     } finally {
@@ -25,7 +28,7 @@ const Roles = () => {
     cargarRoles(); 
   }, []);
 
-  // 2. Crear un nuevo Rol en la base de datos (Opcional, para expandir tu personal)
+  // 2. Crear un nuevo Rol en la base de datos
   const manejarCrearRol = async (e) => {
     e.preventDefault();
     if (!nuevoRol.trim()) return;
@@ -89,7 +92,7 @@ const Roles = () => {
               ) : (
                 <>
                   <Plus size={18} /> Guardar Rol
-                </>
+                </                >
               )}
             </button>
           </form>
@@ -127,7 +130,7 @@ const Roles = () => {
                         {rol.id_rol}
                       </div>
                       <div>
-                        <span className="font-bold text-gray-800 text-lg block">{rol.nombre_rol}</span>
+                        <span className="font-bold text-gray-800 text-lg block">{rol.nombre_rol || "Rol sin nombre"}</span>
                         <span className="text-xs text-gray-500 flex items-center gap-1 mt-1">
                           <Shield size={12} /> Acceso habilitado
                         </span>
