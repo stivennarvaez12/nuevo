@@ -10,7 +10,7 @@ export default function Licores() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   
-  // Novedad: Estados para saber si estamos editando
+  // Estados para saber si estamos editando
   const [modoEdicion, setModoEdicion] = useState(false);
   const [idEditar, setIdEditar] = useState(null);
 
@@ -51,7 +51,7 @@ export default function Licores() {
     }
   };
 
-  // Novedad: Función para abrir el modal listo para editar
+  // Función para abrir el modal listo para editar
   const abrirModalEditar = (licor) => {
     setModoEdicion(true);
     setIdEditar(licor.id);
@@ -66,7 +66,7 @@ export default function Licores() {
     setIsModalOpen(true);
   };
 
-  // Novedad: Función para abrir el modal en modo "Agregar nuevo"
+  // Función para abrir el modal en modo "Agregar nuevo"
   const abrirModalNuevo = () => {
     setModoEdicion(false);
     setIdEditar(null);
@@ -76,7 +76,7 @@ export default function Licores() {
     setIsModalOpen(true);
   };
 
-  // Modificado: Ahora sirve para Guardar Nuevo O Actualizar Existente
+  // Guarda Nuevo O Actualizar Existente
   const guardarLicor = async (e) => {
     e.preventDefault();
     
@@ -175,7 +175,7 @@ export default function Licores() {
                       src={`https://nuevo-98vm.onrender.com/uploads/${licor.imagen}`} 
                       alt={licor.nombre} 
                       className="max-h-full max-w-full object-contain object-center transition-transform group-hover:scale-110"
-                      onError={(e) => { e.target.onerror = null; e.target.src = 'https://via.placeholder.com/150?text=Error'; }}
+                      onError={(e) => { e.target.onerror = null; e.target.src = 'https://via.placeholder.com/150?text=Error+Imagen'; }}
                     />
                   ) : (
                     <div className="flex flex-col items-center justify-center text-gray-400">
