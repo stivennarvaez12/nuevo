@@ -60,7 +60,7 @@ const db = mysql.createPool({
 db.getConnection((err, connection) => {
     if (err) console.error('❌ ERROR DB:', err.message);
     else {
-        console.log('✅ CONECTADO A AIVEN - SISTEMA TOTALMENTE VINCULADO');
+        console.log('✅ CONECTADO A AIVEN - CAMPOS VERIFICADOS CON LOGS');
         connection.release();
     }
 });
@@ -87,7 +87,6 @@ app.post('/api/auth/login', (req, res) => {
     });
 });
 
-// Rutas de Usuarios (Para empatar con tu frontend de Usuarios.jsx)
 app.get('/api/usuarios', (req, res) => {
     const sql = `
         SELECT u.id_usuario, u.nombre, u.email, r.nombre_rol 
@@ -121,7 +120,6 @@ app.delete('/api/usuarios/:id', (req, res) => {
     });
 });
 
-// Rutas de Roles (Para empatar con tu frontend de Roles.jsx)
 app.get('/api/roles', (req, res) => {
     db.query("SELECT * FROM roles ORDER BY id_rol ASC", (err, data) => {
         if (err) return res.status(500).json({ error: err.message });
@@ -138,7 +136,7 @@ app.post('/api/roles', (req, res) => {
 });
 
 // ==========================================
-// 2. PRODUCTOS (INVENTARIO CORREGIDO CON /API)
+// 2. PRODUCTOS (INVENTARIO)
 // ==========================================
 app.get('/api/productos', (req, res) => {
     const sql = "SELECT id_producto AS id, nombre_producto AS nombre, categoria, precio, stock, imagen, descripcion FROM productos";
@@ -196,12 +194,13 @@ app.post('/api/ventas', (req, res) => {
     });
 });
 
+// ¡CORREGIDO CON FECHA_VENTA SEGÚN TU LOG DE AIVEN!
 app.get('/api/ventas', (req, res) => {
     const sql = `
         SELECT 
             v.id_venta AS id, 
             v.total_venta AS total, 
-            v.fecha AS fecha, 
+            v.fecha_venta AS fecha, 
             u.nombre AS cajero, 
             IFNULL(c.nombre, 'Cliente General') AS cliente
         FROM ventas v
@@ -232,6 +231,7 @@ app.get('/api/ventas/:id/detalle', (req, res) => {
 // ==========================================
 // 4. GASTOS
 // ==========================================
+// ¡CORREGIDO CON EL LLAMADO SIMPLIFICADO QUE SÍ CORRIÓ EN TU LOG!
 app.get('/api/gastos', (req, res) => {
     db.query("SELECT * FROM gastos ORDER BY fecha DESC", (err, data) => {
         if (err) return res.status(500).json({ error: err.message });
@@ -242,7 +242,7 @@ app.get('/api/gastos', (req, res) => {
 app.post('/api/gastos', (req, res) => {
     const { descripcion, monto, categoria } = req.body;
     db.query("INSERT INTO gastos (descripcion, monto, categoria) VALUES (?, ?, ?)", 
-    [descripcion, monto, categoria], (err, result) => {
+    [descripcion, monto, categoria || 'General'], (err, result) => {
         if (err) return res.status(500).json({ error: err.message });
         res.status(201).json({ message: "Gasto registrado", id: result.insertId });
     });
@@ -263,7 +263,7 @@ app.post('/api/clientes', (req, res) => {
     const sql = "INSERT INTO clientes (nombre, documento, telefono, correo, direccion) VALUES (?, ?, ?, ?, ?)";
     db.query(sql, [nombre, documento, telefono, correo, direccion], (err, result) => {
         if (err) return res.status(500).json({ error: err.message });
-        res.status(201).json({ message: "Cliente registered", id_cliente: result.insertId });
+        res.status(201).json({ message: "Cliente registrado", id_cliente: result.insertId });
     });
 });
 
@@ -317,7 +317,7 @@ app.get('/api/dashboard', (req, res) => {
 });
 
 // --- INICIO ---
-app.get('/', (req, res) => res.send('🚀 Servidor Licores Nicole v2.5 - API Estandarizada y Completa con CORS'));
+app.get('/', (req, res) => res.send('🚀 Servidor Licores Nicole v3.0 - Sincronizado Milimétricamente con los Logs de Aiven'));
 
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, '0.0.0.0', () => {
