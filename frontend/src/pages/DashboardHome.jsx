@@ -11,7 +11,8 @@ export default function DashboardHome() {
 
   const fetchStats = async () => {
     try {
-      const response = await fetch('http://https://nuevo-98vm.onrender.com:4000/api/dashboard');
+      // URL corregida para conectar directamente con producción en Render
+      const response = await fetch('https://nuevo-98vm.onrender.com/api/dashboard');
       if (response.ok) {
         const data = await response.json();
         setStatsData(data);
@@ -64,7 +65,6 @@ export default function DashboardHome() {
       </div>
 
       {/* TARJETAS DE MÉTRICAS INTELIGENTES */}
-      {/* grid-cols-1 (celular), sm:grid-cols-2 (tablet), lg:grid-cols-4 (computadora) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
         {stats.map((stat, index) => (
           <div key={index} className="bg-white p-5 sm:p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4 hover:shadow-md transition-all">
@@ -88,7 +88,6 @@ export default function DashboardHome() {
           <h2 className="font-bold text-sm sm:text-base md:text-lg text-gray-800">Bebidas a punto de agotarse (Stock crítico: 5 o menos)</h2>
         </div>
         
-        {/* overflow-x-auto previene que la tabla ensanche toda la pantalla del teléfono */}
         <div className="overflow-x-auto">
           {loading ? (
             <div className="p-8 text-center text-gray-400 text-sm">Cargando inventario...</div>

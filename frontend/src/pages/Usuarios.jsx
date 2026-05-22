@@ -11,11 +11,13 @@ const Usuarios = () => {
 
   const cargarDatos = async () => {
     try {
-      const resU = await fetch('http://https://nuevo-98vm.onrender.com:4000/api/usuarios');
+      // Endpoint de usuarios corregido
+      const resU = await fetch('https://nuevo-98vm.onrender.com/api/usuarios');
       const dataU = await resU.json();
       setUsuarios(dataU);
 
-      const resR = await fetch('http://https://nuevo-98vm.onrender.com:4000/api/roles');
+      // Endpoint de roles corregido
+      const resR = await fetch('https://nuevo-98vm.onrender.com/api/roles');
       const dataR = await resR.json();
       setRoles(dataR);
     } catch (error) {
@@ -32,7 +34,8 @@ const Usuarios = () => {
     if (!idRol) return alert("Selecciona un rol");
 
     try {
-      const res = await fetch('http://https://nuevo-98vm.onrender.com:4000/api/usuarios', {
+      // Endpoint de registro corregido
+      const res = await fetch('https://nuevo-98vm.onrender.com/api/usuarios', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ nombre, email, password, id_rol: idRol })
@@ -50,7 +53,8 @@ const Usuarios = () => {
 
   const eliminar = async (id) => {
     if (window.confirm("¿Eliminar este usuario?")) {
-      await fetch(`http://https://nuevo-98vm.onrender.com:4000/api/usuarios/${id}`, { method: 'DELETE' });
+      // Endpoint de eliminación corregido
+      await fetch(`https://nuevo-98vm.onrender.com/api/usuarios/${id}`, { method: 'DELETE' });
       cargarDatos();
     }
   };
