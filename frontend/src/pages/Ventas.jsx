@@ -18,13 +18,13 @@ export default function Ventas() {
     try {
       setLoading(true);
       
-      // Cargar Productos
-      const resProductos = await fetch('http://https://nuevo-98vm.onrender.com:4000/productos');
+      // Cargar Productos (URL corregida para producción)
+      const resProductos = await fetch('https://nuevo-98vm.onrender.com/productos');
       const dataProductos = await resProductos.json();
       setProductos(dataProductos.filter(p => p.stock > 0));
 
-      // Cargar Clientes
-      const resClientes = await fetch('http://https://nuevo-98vm.onrender.com:4000/api/clientes');
+      // Cargar Clientes (URL corregida para producción)
+      const resClientes = await fetch('https://nuevo-98vm.onrender.com/api/clientes');
       if (resClientes.ok) {
         const dataClientes = await resClientes.json();
         setClientes(dataClientes);
@@ -75,11 +75,10 @@ export default function Ventas() {
     }));
   };
 
-  // 3b. NUEVO: Controlar la escritura manual en el input de cantidad
+  // 3b. Controlar la escritura manual en el input de cantidad
   const handleCantidadManual = (id, valor) => {
     const productoOriginal = productos.find(p => p.id === id);
     
-    // Si el usuario borra el número para escribir otro, lo dejamos temporalmente vacío
     if (valor === '') {
       setCarrito(carrito.map(item => item.id === id ? { ...item, cantidad: '' } : item));
       return;
@@ -87,12 +86,10 @@ export default function Ventas() {
 
     const cantidadNum = parseInt(valor, 10);
 
-    // Evitar números negativos o cero de forma manual
     if (isNaN(cantidadNum) || cantidadNum < 1) {
       return;
     }
 
-    // Validar rigurosamente contra el Stock disponible
     if (cantidadNum > productoOriginal.stock) {
       alert(`¡Alerta de inventario! Solo quedan ${productoOriginal.stock} unidades de este producto.`);
       setCarrito(carrito.map(item => item.id === id ? { ...item, cantidad: productoOriginal.stock } : item));
@@ -114,7 +111,7 @@ export default function Ventas() {
     setCarrito(carrito.filter(item => item.id !== id));
   };
 
-  // 5. Calcular el total a pagar protegiendo errores si el input está vacío
+  // 5. Calcular el total a pagar
   const total = carrito.reduce((sum, item) => sum + (item.precio * (Number(item.cantidad) || 0)), 0);
 
   // 6. Filtrar para el buscador
@@ -123,26 +120,25 @@ export default function Ventas() {
     p.categoria.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // 7. PROCESAR LA VENTA (Enviando el cliente seleccionado)
+  // 7. PROCESAR LA VENTA (URL corregida para producción)
   const procesarVenta = async () => {
     setProcesando(true);
     try {
       const id_usuario = localStorage.getItem('id_usuario') || 1;
 
-      // Limpiamos el carrito antes de enviar por si hay algún input vacío temporal
       const carritoLimpio = carrito.map(item => ({
         ...item,
         cantidad: item.cantidad === '' ? 1 : Number(item.cantidad)
       }));
 
-      const response = await fetch('http://https://nuevo-98vm.onrender.com:4000/api/ventas', {
+      const response = await fetch('https://nuevo-98vm.onrender.com/api/ventas', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           id_usuario: id_usuario,
-          id_cliente: idClienteSeleccionado, // Pasamos el cliente seleccionado a la DB
+          id_cliente: idClienteSeleccionado,
           total_venta: total,
           carrito: carritoLimpio
         })
@@ -152,7 +148,7 @@ export default function Ventas() {
         alert("¡Venta registrada con éxito! 💸");
         setCarrito([]);
         setIdClienteSeleccionado("1"); // Reiniciar a cliente general
-        fetchData(); // Recargar productos y clientes con stock fresco
+        fetchData(); // Recargar productos frescos
       } else {
         alert("Error al registrar la venta. Intenta nuevamente.");
       }
@@ -200,7 +196,7 @@ export default function Ventas() {
                 >
                   <div className="w-20 h-20 bg-gray-50 rounded-xl overflow-hidden flex items-center justify-center">
                     {producto.imagen ? (
-                      <img src={`http://https://nuevo-98vm.onrender.com:4000/uploads/${producto.imagen}`} alt={producto.nombre} className="w-full h-full object-contain" />
+                      <img src={`https://nuevo-98vm.onrender.com/uploads/${producto.imagen}`} alt={producto.nombre} className="w-full h-full object-contain" />
                     ) : (
                       <Wine className="text-gray-300" size={32} />
                     )}
@@ -224,7 +220,7 @@ export default function Ventas() {
           <h2 className="text-xl font-bold">Caja Registradora</h2>
         </div>
 
-        {/* NUEVO SECTOR: SELECTOR DE CLIENTE INTEGRADO */}
+        {/* SELECTOR DE CLIENTE INTEGRADO */}
         <div className="p-4 border-b border-gray-100 bg-amber-50/50 flex flex-col gap-1.5">
           <label className="text-xs font-black text-gray-600 uppercase tracking-wider flex items-center gap-1.5">
             <User size={14} className="text-black" /> Asignar Cliente a la Venta
@@ -258,7 +254,6 @@ export default function Ventas() {
                   <p className="font-black text-sm text-black">${Number(item.precio).toLocaleString('es-CO')}</p>
                 </div>
                 
-                {/* NUEVOS CONTROLES: INPUT MANUAL + BOTONES */}
                 <div className="flex items-center gap-1 bg-gray-50 rounded-xl p-1 border border-gray-200">
                   <button 
                     type="button"
