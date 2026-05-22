@@ -7,10 +7,11 @@ export default function Gastos() {
   const [monto, setMonto] = useState('');
   const [loading, setLoading] = useState(true);
 
-  // Cargar historial de gastos desde el servidor
+  // Cargar historial de gastos desde el servidor - URL Estandarizada
   const fetchGastos = async () => {
     try {
-      const response = await fetch('http://https://nuevo-98vm.onrender.com:4000/api/gastos');
+      setLoading(true);
+      const response = await fetch('https://nuevo-98vm.onrender.com/api/gastos');
       if (response.ok) {
         const data = await response.json();
         setGastos(data);
@@ -37,7 +38,7 @@ export default function Gastos() {
     const idUsuario = localStorage.getItem('id_usuario') || 1; 
 
     try {
-      const response = await fetch('http://https://nuevo-98vm.onrender.com:4000/api/gastos', {
+      const response = await fetch('https://nuevo-98vm.onrender.com/api/gastos', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -48,10 +49,10 @@ export default function Gastos() {
       });
 
       if (response.ok) {
-        alert("¡Gasto registrado con éxito!");
-        setDescripcion(''); // Limpiar formulario
+        alert("¡Gasto registrado con éxito! 💸");
+        setDescripcion(''); 
         setMonto('');
-        fetchGastos(); // Recargar la lista de gastos
+        fetchGastos(); 
       } else {
         alert("Error al registrar el gasto en la base de datos.");
       }
@@ -140,8 +141,8 @@ export default function Gastos() {
             </div>
           ) : (
             <div className="space-y-3">
-              {gastos.map((gasto) => (
-                <div key={gasto.id_gasto} className="flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl hover:shadow-md transition-shadow">
+              {gastos.map((gasto, index) => (
+                <div key={gasto.id || gasto.id_gasto || index} className="flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl hover:shadow-md transition-shadow">
                   <div className="flex items-center gap-4">
                     <div className="bg-red-50 text-red-500 p-3 rounded-xl">
                       <TrendingDown size={20} />
@@ -150,7 +151,11 @@ export default function Gastos() {
                       <h4 className="font-bold text-gray-800">{gasto.descripcion}</h4>
                       <div className="flex items-center text-xs text-gray-500 mt-1 gap-1">
                         <Calendar size={12} />
-                        {new Date(gasto.fecha_gasto).toLocaleString('es-CO')}
+                        {gasto.fecha || gasto.fecha_gasto ? (
+                          new Date(gasto.fecha || gasto.fecha_gasto).toLocaleString('es-CO')
+                        ) : (
+                          "Fecha no disponible"
+                        )}
                       </div>
                     </div>
                   </div>

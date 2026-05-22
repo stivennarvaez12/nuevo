@@ -7,22 +7,24 @@ export default function Compras() {
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
 
-  // Cargar productos de la base de datos
-  useEffect(() => {
-    const fetchProductos = async () => {
-      try {
-        const response = await fetch('http://https://nuevo-98vm.onrender.com:4000/productos');
-        if (response.ok) {
-          const data = await response.json();
-          setProductos(data);
-        }
-      } catch (error) {
-        console.error("Error al cargar productos:", error);
-      } finally {
-        setLoading(false);
+  // Cargar productos de la base de datos - URL corregida
+  const cargarProductos = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('https://nuevo-98vm.onrender.com/api/productos');
+      if (response.ok) {
+        const data = await response.json();
+        setProductos(data);
       }
-    };
-    fetchProductos();
+    } catch (error) {
+      console.error("Error al cargar productos:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    cargarProductos();
   }, []);
 
   // Filtrar productos
@@ -39,7 +41,6 @@ export default function Compras() {
         item.id === producto.id ? { ...item, cantidad: item.cantidad + 1 } : item
       ));
     } else {
-      // Por defecto el precio de costo inicia en 0 para que el usuario lo digite
       setCarrito([...carrito, { ...producto, cantidad: 1, precio_costo: 0 }]);
     }
   };
@@ -55,7 +56,7 @@ export default function Compras() {
     }));
   };
 
-  // Modificar precio de costo (lo que nos cobra el proveedor)
+  // Modificar precio de costo
   const cambiarPrecioCosto = (id, nuevoPrecio) => {
     setCarrito(carrito.map(item => 
       item.id === id ? { ...item, precio_costo: Number(nuevoPrecio) } : item
@@ -74,7 +75,6 @@ export default function Compras() {
   const registrarCompra = async () => {
     if (carrito.length === 0) return alert("El carrito de compras está vacío.");
     
-    // Validar que todos tengan precio de costo mayor a 0
     const sinPrecio = carrito.find(item => item.precio_costo <= 0);
     if (sinPrecio) {
       return alert(`Por favor ingresa el precio de costo para: ${sinPrecio.nombre}`);
@@ -83,24 +83,22 @@ export default function Compras() {
     const idUsuario = localStorage.getItem('id_usuario') || 1; 
 
     try {
-      const response = await fetch('http://https://nuevo-98vm.onrender.com:4000/api/compras', {
+      // Ajustado 'total_compradecimal' para encajar perfectamente con tu backend
+      const response = await fetch('https://nuevo-98vm.onrender.com/api/compras', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           id_usuario: idUsuario,
-          total_compra: totalCompra,
+          total_compradecimal: totalCompra,
           carrito: carrito
         })
       });
 
       if (response.ok) {
         alert("¡Compra registrada! El stock de los productos ha sido actualizado.");
-        setCarrito([]); // Limpiar carrito
-        // Recargar productos para ver el stock actualizado en pantalla
-        const res = await fetch('http://https://nuevo-98vm.onrender.com:4000/productos');
-        if (res.ok) {
-          setProductos(await res.json());
-        }
+        setCarrito([]); 
+        // Recargar productos usando la función limpia
+        cargarProductos();
       } else {
         alert("Error al registrar la compra.");
       }
@@ -147,7 +145,8 @@ export default function Compras() {
                 >
                   <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
                     {prod.imagen ? (
-                      <img src={`http://https://nuevo-98vm.onrender.com:4000/uploads/${prod.imagen}`} alt={prod.nombre} className="w-12 h-12 object-cover rounded-full" />
+                      // URL de render estandarizada para mostrar imágenes en la compra
+                      <img src={`https://nuevo-98vm.onrender.com/uploads/${prod.imagen}`} alt={prod.nombre} className="w-12 h-12 object-cover rounded-full" />
                     ) : (
                       <Package size={24} className="text-gray-400" />
                     )}

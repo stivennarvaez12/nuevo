@@ -60,13 +60,13 @@ const db = mysql.createPool({
 db.getConnection((err, connection) => {
     if (err) console.error('❌ ERROR DB:', err.message);
     else {
-        console.log('✅ CONECTADO A AIVEN - TABLAS CLIENTES Y COMPRAS VINCULADAS');
+        console.log('✅ CONECTADO A AIVEN - SISTEMA TOTALMENTE VINCULADO');
         connection.release();
     }
 });
 
 // ==========================================
-// 1. USUARIOS / AUTH
+// 1. USUARIOS / ROLES / AUTH
 // ==========================================
 app.post('/api/auth/login', (req, res) => {
     const { email, password } = req.body;
@@ -87,10 +87,60 @@ app.post('/api/auth/login', (req, res) => {
     });
 });
 
+// Rutas de Usuarios (Para empatar con tu frontend de Usuarios.jsx)
+app.get('/api/usuarios', (req, res) => {
+    const sql = `
+        SELECT u.id_usuario, u.nombre, u.email, r.nombre_rol 
+        FROM usuarios u
+        LEFT JOIN roles r ON u.id_rol = r.id_rol
+    `;
+    db.query(sql, (err, data) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(data);
+    });
+});
+
+app.post('/api/usuarios', async (req, res) => {
+    const { nombre, email, password, id_rol } = req.body;
+    try {
+        const hashedPassword = await bcrypt.hash(password, 10);
+        const sql = "INSERT INTO usuarios (nombre, email, password, id_rol) VALUES (?, ?, ?, ?)";
+        db.query(sql, [nombre, email, hashedPassword, id_rol], (err, result) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.status(201).json({ message: "Usuario creado con éxito", id: result.insertId });
+        });
+    } catch (error) {
+        res.status(500).json({ error: "Error al procesar la contraseña" });
+    }
+});
+
+app.delete('/api/usuarios/:id', (req, res) => {
+    db.query("DELETE FROM usuarios WHERE id_usuario = ?", [req.params.id], (err) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ message: "Usuario eliminado" });
+    });
+});
+
+// Rutas de Roles (Para empatar con tu frontend de Roles.jsx)
+app.get('/api/roles', (req, res) => {
+    db.query("SELECT * FROM roles ORDER BY id_rol ASC", (err, data) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(data);
+    });
+});
+
+app.post('/api/roles', (req, res) => {
+    const { nombre_rol } = req.body;
+    db.query("INSERT INTO roles (nombre_rol) VALUES (?)", [nombre_rol], (err, result) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.status(201).json({ message: "Rol creado", id_rol: result.insertId });
+    });
+});
+
 // ==========================================
-// 2. PRODUCTOS (INVENTARIO)
+// 2. PRODUCTOS (INVENTARIO CORREGIDO CON /API)
 // ==========================================
-app.get('/productos', (req, res) => {
+app.get('/api/productos', (req, res) => {
     const sql = "SELECT id_producto AS id, nombre_producto AS nombre, categoria, precio, stock, imagen, descripcion FROM productos";
     db.query(sql, (err, data) => {
         if (err) return res.status(500).json({ error: err.message });
@@ -98,7 +148,7 @@ app.get('/productos', (req, res) => {
     });
 });
 
-app.post('/productos', upload.single('imagen'), (req, res) => {
+app.post('/api/productos', upload.single('imagen'), (req, res) => {
     const { nombre, categoria, precio, stock, descripcion } = req.body;
     const imagen = req.file ? req.file.filename : null;
     const sql = "INSERT INTO productos (nombre_producto, categoria, precio, stock, imagen, descripcion) VALUES (?, ?, ?, ?, ?, ?)";
@@ -108,7 +158,7 @@ app.post('/productos', upload.single('imagen'), (req, res) => {
     });
 });
 
-app.delete('/productos/:id', (req, res) => {
+app.delete('/api/productos/:id', (req, res) => {
     db.query("DELETE FROM productos WHERE id_producto = ?", [req.params.id], (err) => {
         if (err) return res.status(500).json(err);
         res.json({ message: "Producto eliminado" });
@@ -116,15 +166,12 @@ app.delete('/productos/:id', (req, res) => {
 });
 
 // ==========================================
-// 3. VENTAS Y DETALLES (PROCESAR NUEVA VENTA)
+// 3. VENTAS Y DETALLES
 // ==========================================
 app.post('/api/ventas', (req, res) => {
     const { id_usuario, id_cliente, total_venta, carrito } = req.body;
-    
-    // Si por alguna razón no viene el id_cliente, se le asigna 1 por defecto (Cliente General)
     const clienteId = id_cliente || 1;
 
-    // Agregamos id_cliente al INSERT de la tabla ventas
     db.query("INSERT INTO ventas (id_usuario, id_cliente, total_venta) VALUES (?, ?, ?)", 
     [id_usuario, clienteId, total_venta], (err, result) => {
         if (err) return res.status(500).json({ error: err.message });
@@ -149,11 +196,6 @@ app.post('/api/ventas', (req, res) => {
     });
 });
 
-// ==========================================
-// 3b. HISTORIAL DE VENTAS (ENDPOINTS INDEPENDIENTES)
-// ==========================================
-
-// 1. Obtener el listado general de ventas para el historial
 app.get('/api/ventas', (req, res) => {
     const sql = `
         SELECT 
@@ -167,29 +209,20 @@ app.get('/api/ventas', (req, res) => {
         LEFT JOIN clientes c ON v.id_cliente = c.id_cliente
         ORDER BY v.id_venta DESC
     `;
-
     db.query(sql, (err, data) => {
-        if (err) {
-            console.error("Error en GET /api/ventas:", err);
-            return res.status(500).json({ error: err.message });
-        }
+        if (err) return res.status(500).json({ error: err.message });
         res.json(data);
     });
 });
 
-// 2. Obtener el detalle específico de productos de una venta (para el Modal)
 app.get('/api/ventas/:id/detalle', (req, res) => {
     const { id } = req.params;
     const sql = `
-        SELECT 
-            dv.cantidad, 
-            dv.precio_unitario AS precio, 
-            p.nombre_producto AS nombre
+        SELECT dv.cantidad, dv.precio_unitario AS precio, p.nombre_producto AS nombre
         FROM detalle_ventas dv
         JOIN productos p ON dv.id_producto = p.id_producto
         WHERE dv.id_venta = ?
     `;
-
     db.query(sql, [id], (err, data) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json(data);
@@ -216,7 +249,7 @@ app.post('/api/gastos', (req, res) => {
 });
 
 // ==========================================
-// 5. CLIENTES (OPTIMIZADO CON ALIAS PARA EL FRONTEND)
+// 5. CLIENTES
 // ==========================================
 app.get('/api/clientes', (req, res) => {
     db.query("SELECT id_cliente, nombre, documento AS cedula, telefono, correo, direccion FROM clientes", (err, data) => {
@@ -230,7 +263,7 @@ app.post('/api/clientes', (req, res) => {
     const sql = "INSERT INTO clientes (nombre, documento, telefono, correo, direccion) VALUES (?, ?, ?, ?, ?)";
     db.query(sql, [nombre, documento, telefono, correo, direccion], (err, result) => {
         if (err) return res.status(500).json({ error: err.message });
-        res.status(201).json({ message: "Cliente registrado", id_cliente: result.insertId });
+        res.status(201).json({ message: "Cliente registered", id_cliente: result.insertId });
     });
 });
 
@@ -254,7 +287,7 @@ app.post('/api/compras', (req, res) => {
 });
 
 // ==========================================
-// 7. DASHBOARD (ESTADÍSTICAS INTEGRAL)
+// 7. DASHBOARD
 // ==========================================
 app.get('/api/dashboard', (req, res) => {
     const qVentas = "SELECT IFNULL(SUM(total_venta), 0) as totalIngresos FROM ventas";
@@ -284,7 +317,7 @@ app.get('/api/dashboard', (req, res) => {
 });
 
 // --- INICIO ---
-app.get('/', (req, res) => res.send('🚀 Servidor Licores Nicole v2.1 - API Completa con Clientes y Compras'));
+app.get('/', (req, res) => res.send('🚀 Servidor Licores Nicole v2.5 - API Estandarizada y Completa con CORS'));
 
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, '0.0.0.0', () => {
