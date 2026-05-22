@@ -10,7 +10,7 @@ export default function Gastos() {
   // Cargar historial de gastos desde el servidor
   const fetchGastos = async () => {
     try {
-      const response = await fetch('http://172.20.10.4:4000/api/gastos');
+      const response = await fetch('http://https://nuevo-98vm.onrender.com:4000/api/gastos');
       if (response.ok) {
         const data = await response.json();
         setGastos(data);
@@ -37,7 +37,7 @@ export default function Gastos() {
     const idUsuario = localStorage.getItem('id_usuario') || 1; 
 
     try {
-      const response = await fetch('http://172.20.10.4:4000/api/gastos', {
+      const response = await fetch('http://https://nuevo-98vm.onrender.com:4000/api/gastos', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

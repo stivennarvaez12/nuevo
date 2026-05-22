@@ -11,7 +11,7 @@ export default function DashboardHome() {
 
   const fetchStats = async () => {
     try {
-      const response = await fetch('http://172.20.10.4:4000/api/dashboard');
+      const response = await fetch('http://https://nuevo-98vm.onrender.com:4000/api/dashboard');
       if (response.ok) {
         const data = await response.json();
         setStatsData(data);

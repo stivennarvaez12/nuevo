@@ -16,7 +16,7 @@ export default function HistorialVentas() {
   useEffect(() => {
     const fetchVentas = async () => {
       try {
-        const response = await fetch('http://172.20.10.4:4000/api/ventas');
+        const response = await fetch('http://https://nuevo-98vm.onrender.com:4000/api/ventas');
         if (response.ok) {
           const data = await response.json();
           setVentas(data);
@@ -36,7 +36,7 @@ export default function HistorialVentas() {
     setShowModal(true);
     setLoadingDetalle(true);
     try {
-      const response = await fetch(`http://172.20.10.4:4000/api/ventas/${venta.id}/detalle`);
+      const response = await fetch(`http://https://nuevo-98vm.onrender.com:4000/api/ventas/${venta.id}/detalle`);
       if (response.ok) {
         const data = await response.json();
         setDetalles(data);

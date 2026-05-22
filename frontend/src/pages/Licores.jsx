@@ -24,7 +24,7 @@ export default function Licores() {
   const fetchLicores = async () => {
     setLoading(true);
     try {
-      const response = await fetch('http://172.20.10.4:4000/productos');
+      const response = await fetch('http://https://nuevo-98vm.onrender.com:4000/productos');
       if (!response.ok) throw new Error('Error al conectar');
       const data = await response.json();
       setLicores(data);
@@ -61,7 +61,7 @@ export default function Licores() {
       precio: licor.precio,
       stock: licor.stock
     });
-    setImagenPreview(licor.imagen ? `http://172.20.10.4:4000/uploads/${licor.imagen}` : null);
+    setImagenPreview(licor.imagen ? `http://https://nuevo-98vm.onrender.com:4000/uploads/${licor.imagen}` : null);
     setImagenFile(null);
     setIsModalOpen(true);
   };
@@ -90,8 +90,8 @@ export default function Licores() {
     }
 
     const url = modoEdicion 
-      ? `http://172.20.10.4:4000/productos/${idEditar}` 
-      : 'http://172.20.10.4:4000/productos';
+      ? `http://https://nuevo-98vm.onrender.com:4000/productos/${idEditar}` 
+      : 'http://https://nuevo-98vm.onrender.com:4000/productos';
       
     const method = modoEdicion ? 'PUT' : 'POST';
 
@@ -113,7 +113,7 @@ export default function Licores() {
   const eliminarLicor = async (id, nombre) => {
     if (window.confirm(`¿Seguro que quieres eliminar "${nombre}"?`)) {
       try {
-        const res = await fetch(`http://172.20.10.4:4000/productos/${id}`, { method: 'DELETE' });
+        const res = await fetch(`http://https://nuevo-98vm.onrender.com:4000/productos/${id}`, { method: 'DELETE' });
         if (res.ok) {
           setLicores(licores.filter(l => l.id !== id));
         }
@@ -172,7 +172,7 @@ export default function Licores() {
                 <div className="w-full aspect-square overflow-hidden bg-gray-50 flex items-center justify-center p-6">
                   {licor.imagen ? (
                     <img 
-                      src={`http://172.20.10.4:4000/uploads/${licor.imagen}`} 
+                      src={`http://https://nuevo-98vm.onrender.com:4000/uploads/${licor.imagen}`} 
                       alt={licor.nombre} 
                       className="max-h-full max-w-full object-contain object-center transition-transform group-hover:scale-110"
                       onError={(e) => { e.target.onerror = null; e.target.src = 'https://via.placeholder.com/150?text=Error'; }}

@@ -19,12 +19,12 @@ export default function Ventas() {
       setLoading(true);
       
       // Cargar Productos
-      const resProductos = await fetch('http://172.20.10.4:4000/productos');
+      const resProductos = await fetch('http://https://nuevo-98vm.onrender.com:4000/productos');
       const dataProductos = await resProductos.json();
       setProductos(dataProductos.filter(p => p.stock > 0));
 
       // Cargar Clientes
-      const resClientes = await fetch('http://172.20.10.4:4000/api/clientes');
+      const resClientes = await fetch('http://https://nuevo-98vm.onrender.com:4000/api/clientes');
       if (resClientes.ok) {
         const dataClientes = await resClientes.json();
         setClientes(dataClientes);
@@ -135,7 +135,7 @@ export default function Ventas() {
         cantidad: item.cantidad === '' ? 1 : Number(item.cantidad)
       }));
 
-      const response = await fetch('http://172.20.10.4:4000/api/ventas', {
+      const response = await fetch('http://https://nuevo-98vm.onrender.com:4000/api/ventas', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -200,7 +200,7 @@ export default function Ventas() {
                 >
                   <div className="w-20 h-20 bg-gray-50 rounded-xl overflow-hidden flex items-center justify-center">
                     {producto.imagen ? (
-                      <img src={`http://172.20.10.4:4000/uploads/${producto.imagen}`} alt={producto.nombre} className="w-full h-full object-contain" />
+                      <img src={`http://https://nuevo-98vm.onrender.com:4000/uploads/${producto.imagen}`} alt={producto.nombre} className="w-full h-full object-contain" />
                     ) : (
                       <Wine className="text-gray-300" size={32} />
                     )}
