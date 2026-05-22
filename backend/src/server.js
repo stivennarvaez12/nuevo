@@ -60,7 +60,7 @@ const db = mysql.createPool({
 db.getConnection((err, connection) => {
     if (err) console.error('❌ ERROR DB:', err.message);
     else {
-        console.log('✅ CONECTADO A AIVEN - CAMPOS VERIFICADOS CON LOGS');
+        console.log('✅ CONECTADO A AIVEN - OPERANDO EN SRC/SERVER.JS');
         connection.release();
     }
 });
@@ -194,7 +194,6 @@ app.post('/api/ventas', (req, res) => {
     });
 });
 
-// ¡CORREGIDO CON FECHA_VENTA SEGÚN TU LOG DE AIVEN!
 app.get('/api/ventas', (req, res) => {
     const sql = `
         SELECT 
@@ -231,7 +230,6 @@ app.get('/api/ventas/:id/detalle', (req, res) => {
 // ==========================================
 // 4. GASTOS
 // ==========================================
-// ¡CORREGIDO CON EL LLAMADO SIMPLIFICADO QUE SÍ CORRIÓ EN TU LOG!
 app.get('/api/gastos', (req, res) => {
     db.query("SELECT * FROM gastos ORDER BY fecha DESC", (err, data) => {
         if (err) return res.status(500).json({ error: err.message });
@@ -316,10 +314,9 @@ app.get('/api/dashboard', (req, res) => {
     });
 });
 
-// --- INICIO ---
-app.get('/', (req, res) => res.send('🚀 Servidor Licores Nicole v3.0 - Sincronizado Milimétricamente con los Logs de Aiven'));
+app.get('/', (req, res) => res.send('🚀 Servidor Licores Nicole v3.5 - ¡SRC/SERVER.JS EN VIVO!'));
 
-const PORT = process.env.PORT || 4000;
+const PORT = process.env.PORT || 10000; // Render usa por defecto el puerto 10000 interno
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Servidor corriendo en puerto ${PORT}`);
 });
