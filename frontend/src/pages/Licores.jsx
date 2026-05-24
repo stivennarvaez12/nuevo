@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { 
   Wine, Plus, Search, Edit2, Trash2, 
-  RefreshCcw, X, ImagePlus 
+  RefreshCcw, X, ImagePlus, Loader2 
 } from 'lucide-react';
 
 export default function Licores() {
@@ -124,98 +124,116 @@ export default function Licores() {
   );
 
   return (
-    <div className="space-y-8 p-6 md:p-8">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+    <div className="space-y-4 sm:space-y-6 pb-24 lg:pb-0 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      
+      {/* SECCIÓN DE ENCABEZADO ACCESIBLE */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-950">Gestión de Inventario</h1>
-          <p className="text-gray-500 mt-1">Administra el stock, precios y fotos de tus productos en un formato visual.</p>
+          <h1 className="text-2xl sm:text-3xl font-black text-gray-950 tracking-tight">Gestión de Inventario</h1>
+          <p className="text-xs sm:text-sm text-gray-500 mt-0.5">Administra el stock, precios y fotos de tus productos en formato visual.</p>
         </div>
         <button 
           onClick={abrirModalNuevo}
-          className="bg-black text-white px-6 py-3 rounded-2xl font-bold flex items-center gap-2.5 hover:bg-gray-800 transition-all shadow-lg active:scale-95"
+          className="w-full sm:w-auto bg-gray-950 text-white px-5 py-3 rounded-xl sm:rounded-2xl font-black text-xs sm:text-sm uppercase tracking-wider flex items-center justify-center gap-2 hover:bg-gray-800 transition-all shadow-md active:scale-95"
         >
-          <Plus size={22} /> Agregar Nuevo Licor
+          <Plus size={18} /> Agregar Nuevo Licor
         </button>
       </div>
 
-      <div className="bg-white p-5 rounded-3xl shadow-sm border border-gray-100 flex flex-wrap gap-5 items-center">
-        <div className="relative flex-1 min-w-[300px]">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+      {/* SECCIÓN DE BÚSQUEDA Y CONTROL */}
+      <div className="bg-white p-3 sm:p-4 rounded-2xl shadow-sm border border-gray-100 flex gap-2 items-center">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
           <input 
             type="text" 
             placeholder="Buscar por nombre o categoría..." 
-            className="w-full pl-12 pr-6 py-3.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-black outline-none font-medium text-base"
+            className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-gray-950 outline-none font-medium text-xs sm:text-sm"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        <button onClick={fetchLicores} className="p-3 text-gray-500 hover:bg-gray-100 rounded-xl transition-colors">
-          <RefreshCcw size={22} />
+        <button 
+          onClick={fetchLicores} 
+          className="p-2.5 text-gray-500 hover:bg-gray-100 rounded-xl transition-colors shrink-0"
+          title="Sincronizar inventario"
+        >
+          <RefreshCcw size={18} />
         </button>
       </div>
 
-      <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-8">
+      {/* CONTENEDOR DEL CATÁLOGO */}
+      <div className="bg-white rounded-2xl sm:rounded-3xl shadow-sm border border-gray-100 p-4 sm:p-6">
         {loading ? (
-          <div className="p-20 flex flex-col items-center gap-4 text-gray-400">
-            <div className="w-12 h-12 border-4 border-black border-t-transparent rounded-full animate-spin"></div>
-            <p className="font-bold uppercase tracking-widest text-xs">Sincronizando con MySQL...</p>
+          <div className="p-16 flex flex-col items-center justify-center gap-2 text-gray-400">
+            <Loader2 className="w-8 h-8 animate-spin text-gray-950" />
+            <p className="font-bold uppercase tracking-widest text-[10px]">Sincronizando con MySQL...</p>
           </div>
         ) : licoresFiltrados.length === 0 ? (
-          <div className="p-20 flex flex-col items-center gap-4 text-gray-400">
-            <Wine size={48} className="opacity-20" />
-            <p className="text-sm font-medium">No hay licores registrados en el inventario.</p>
+          <div className="p-16 flex flex-col items-center justify-center gap-2 text-gray-400">
+            <Wine size={40} className="opacity-20" />
+            <p className="text-xs sm:text-sm font-medium text-center">No hay licores registrados en el inventario.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
+          <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
             {licoresFiltrados.map((licor) => (
-              <div key={licor.id} className="bg-white rounded-3xl border border-gray-100 overflow-hidden shadow-sm hover:shadow-xl transition-all group flex flex-col">
-                <div className="w-full aspect-square overflow-hidden bg-gray-50 flex items-center justify-center p-6">
+              <div key={licor.id} className="bg-white rounded-2xl sm:rounded-3xl border border-gray-100 overflow-hidden shadow-sm hover:shadow-md transition-all group flex flex-col">
+                
+                {/* Visualizador de imagen adaptable */}
+                <div className="w-full aspect-square overflow-hidden bg-gray-50/70 flex items-center justify-center p-4 relative">
                   {licor.imagen ? (
                     <img 
                       src={`https://nuevo-98vm.onrender.com/uploads/${licor.imagen}`} 
                       alt={licor.nombre} 
-                      className="max-h-full max-w-full object-contain object-center transition-transform group-hover:scale-110"
+                      className="max-h-full max-w-full object-contain object-center transition-transform group-hover:scale-105"
                       onError={(e) => { e.target.onerror = null; e.target.src = 'https://via.placeholder.com/150?text=Error+Imagen'; }}
                     />
                   ) : (
-                    <div className="flex flex-col items-center justify-center text-gray-400">
-                      <Wine size={64} className="mb-3" />
-                      <span className="text-sm font-medium">Sin foto</span>
+                    <div className="flex flex-col items-center justify-center text-gray-300">
+                      <Wine size={44} className="mb-1" />
+                      <span className="text-[10px] font-bold uppercase tracking-wider">Sin foto</span>
                     </div>
                   )}
+                  
+                  {/* Badge de Categoría flotante para optimizar espacio abajo */}
+                  <span className="absolute top-2 left-2 px-2 py-0.5 bg-gray-950 text-white rounded-md text-[9px] font-black uppercase tracking-wider">
+                    {licor.categoria || "Licor"}
+                  </span>
                 </div>
 
-                <div className="p-6 flex-1 flex flex-col gap-4">
-                  <h3 className="font-bold text-gray-800 text-xl leading-tight flex-1">{licor.nombre}</h3>
-                  <div className="flex items-center gap-2">
-                    <span className="px-3.5 py-1.5 bg-gray-100 text-gray-600 rounded-lg text-[11px] font-black uppercase">
-                      {licor.categoria}
-                    </span>
-                  </div>
-                  <p className="font-black text-gray-950 text-3xl">${Number(licor.precio).toLocaleString('es-CO')}</p>
-                  <div className="flex items-center gap-2.5 pt-1">
-                    <span className={`w-3 h-3 rounded-full ${licor.stock < 10 ? 'bg-red-500 animate-pulse' : 'bg-emerald-500'}`}></span>
-                    <span className={`font-bold text-base ${licor.stock < 10 ? 'text-red-600' : 'text-gray-700'}`}>
-                      {licor.stock} und. <span className="font-medium text-gray-500">disponibles</span>
-                    </span>
+                {/* Detalles de la tarjeta */}
+                <div className="p-4 flex-1 flex flex-col justify-between gap-3">
+                  <div className="space-y-1">
+                    <h3 className="font-bold text-gray-900 text-sm sm:text-base leading-tight line-clamp-2 min-h-[2.5rem]">{licor.nombre}</h3>
+                    <p className="font-black text-gray-950 text-xl sm:text-2xl">${Number(licor.precio).toLocaleString('es-CO')}</p>
                   </div>
 
-                  <div className="border-t border-gray-100 pt-5 mt-auto flex justify-end gap-3">
-                    <button 
-                      onClick={() => abrirModalEditar(licor)} 
-                      className="p-2.5 text-blue-600 hover:bg-blue-50 rounded-xl transition-colors"
-                      title="Editar Producto"
-                    >
-                      <Edit2 size={20}/>
-                    </button>
-                    <button 
-                      onClick={() => eliminarLicor(licor.id, licor.nombre)} 
-                      className="p-2.5 text-red-600 hover:bg-red-50 rounded-xl transition-colors"
-                      title="Eliminar Producto"
-                    >
-                      <Trash2 size={20}/>
-                    </button>
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <span className={`w-2 h-2 rounded-full shrink-0 ${licor.stock < 10 ? 'bg-red-500 animate-pulse' : 'bg-emerald-500'}`}></span>
+                      <span className={`font-bold text-xs ${licor.stock < 10 ? 'text-red-600' : 'text-gray-600'}`}>
+                        {licor.stock} und. <span className="font-medium text-gray-400">disponibles</span>
+                      </span>
+                    </div>
+
+                    {/* Botonera de acciones */}
+                    <div className="border-t border-gray-50 pt-2.5 flex justify-end gap-1">
+                      <button 
+                        onClick={() => abrirModalEditar(licor)} 
+                        className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-xl transition-colors"
+                        title="Editar Producto"
+                      >
+                        <Edit2 size={16}/>
+                      </button>
+                      <button 
+                        onClick={() => eliminarLicor(licor.id, licor.nombre)} 
+                        className="p-2 text-red-600 hover:bg-red-50 rounded-xl transition-colors"
+                        title="Eliminar Producto"
+                      >
+                        <Trash2 size={16}/>
+                      </button>
+                    </div>
                   </div>
+
                 </div>
               </div>
             ))}
@@ -223,54 +241,64 @@ export default function Licores() {
         )}
       </div>
 
+      {/* MODAL RESPONSIVO PARA REGISTRO/EDICIÓN */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="p-6 bg-black text-white flex justify-between items-center">
-              <h2 className="text-xl font-bold flex items-center gap-2">
-                <Wine size={24} className="text-amber-500" /> {modoEdicion ? 'Editar Licor' : 'Nuevo Licor'}
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-0 sm:p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl w-full sm:max-w-md overflow-hidden flex flex-col max-h-[92vh] sm:max-h-none animate-in slide-in-from-bottom-10 sm:zoom-in-95 duration-200">
+            
+            {/* Cabecera del modal */}
+            <div className="p-4 sm:p-5 bg-gray-950 text-white flex justify-between items-center shrink-0">
+              <h2 className="text-base sm:text-lg font-black uppercase tracking-wider flex items-center gap-2">
+                <Wine size={20} className="text-amber-400" /> {modoEdicion ? 'Editar Licor' : 'Nuevo Licor'}
               </h2>
-              <button onClick={() => setIsModalOpen(false)} className="hover:bg-white/20 p-2 rounded-full transition-colors">
-                <X size={24} />
+              <button onClick={() => setIsModalOpen(false)} className="hover:bg-white/20 p-1.5 rounded-full transition-colors text-gray-400 hover:text-white">
+                <X size={20} />
               </button>
             </div>
             
-            <form onSubmit={guardarLicor} className="p-6 space-y-5">
+            {/* Cuerpo del formulario deslizable en dispositivos móviles */}
+            <form onSubmit={guardarLicor} className="p-4 sm:p-6 space-y-4 overflow-y-auto flex-1 pb-8 sm:pb-6">
+              
+              {/* Zona de carga de imagen */}
               <div className="flex flex-col items-center justify-center">
                 <label className="relative cursor-pointer group flex flex-col items-center">
-                  <div className="w-24 h-24 rounded-full bg-gray-100 border-2 border-dashed border-gray-300 flex items-center justify-center overflow-hidden group-hover:border-black transition-colors">
+                  <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gray-50 border-2 border-dashed border-gray-200 flex items-center justify-center overflow-hidden group-hover:border-gray-950 transition-colors">
                     {imagenPreview ? (
                       <img src={imagenPreview} alt="Preview" className="w-full h-full object-cover" />
                     ) : (
-                      <ImagePlus size={30} className="text-gray-400 group-hover:text-black transition-colors" />
+                      <ImagePlus size={24} className="text-gray-400 group-hover:text-gray-900 transition-colors" />
                     )}
                   </div>
-                  <span className="mt-2 text-xs font-bold text-gray-500 uppercase tracking-widest">
+                  <span className="mt-1.5 text-[9px] font-black text-gray-400 uppercase tracking-widest">
                     {modoEdicion ? 'Cambiar Foto' : 'Subir Foto'}
                   </span>
                   <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
                 </label>
               </div>
 
+              {/* Campos de texto */}
               <div>
-                <label className="block text-xs font-black uppercase text-gray-400 mb-1.5 tracking-widest">Nombre del Licor</label>
-                <input required name="nombre" value={nuevoLicor.nombre} onChange={handleInputChange} type="text" className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-black outline-none transition-all" />
+                <label className="block text-[10px] font-black uppercase text-gray-400 mb-1 tracking-widest">Nombre del Licor</label>
+                <input required name="nombre" value={nuevoLicor.nombre} onChange={handleInputChange} type="text" className="w-full p-3 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-gray-950 outline-none text-xs sm:text-sm font-medium transition-all" />
               </div>
+              
               <div>
-                <label className="block text-xs font-black uppercase text-gray-400 mb-1.5 tracking-widest">Categoría</label>
-                <input required name="categoria" value={nuevoLicor.categoria} onChange={handleInputChange} type="text" className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-black outline-none transition-all" />
+                <label className="block text-[10px] font-black uppercase text-gray-400 mb-1 tracking-widest">Categoría</label>
+                <input required name="categoria" value={nuevoLicor.categoria} onChange={handleInputChange} type="text" className="w-full p-3 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-gray-950 outline-none text-xs sm:text-sm font-medium transition-all" />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-black uppercase text-gray-400 mb-1.5 tracking-widest">Precio ($)</label>
-                  <input required name="precio" value={nuevoLicor.precio} onChange={handleInputChange} type="number" className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-black outline-none transition-all" />
+                  <label className="block text-[10px] font-black uppercase text-gray-400 mb-1 tracking-widest">Precio ($)</label>
+                  <input required name="precio" value={nuevoLicor.precio} onChange={handleInputChange} type="number" className="w-full p-3 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-gray-950 outline-none text-xs sm:text-sm font-medium transition-all" />
                 </div>
                 <div>
-                  <label className="block text-xs font-black uppercase text-gray-400 mb-1.5 tracking-widest">Stock</label>
-                  <input required name="stock" value={nuevoLicor.stock} onChange={handleInputChange} type="number" className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-black outline-none transition-all" />
+                  <label className="block text-[10px] font-black uppercase text-gray-400 mb-1 tracking-widest">Stock</label>
+                  <input required name="stock" value={nuevoLicor.stock} onChange={handleInputChange} type="number" className="w-full p-3 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-gray-950 outline-none text-xs sm:text-sm font-medium transition-all" />
                 </div>
               </div>
-              <button type="submit" className="w-full bg-black text-white py-4 rounded-2xl font-black uppercase tracking-widest mt-4 hover:bg-gray-800 transition-all shadow-xl active:scale-95">
+              
+              <button type="submit" className="w-full bg-gray-950 text-white py-3.5 sm:py-4 rounded-xl font-black text-xs uppercase tracking-widest mt-2 hover:bg-gray-800 transition-all shadow-md active:scale-95">
                 {modoEdicion ? 'Actualizar Producto' : 'Guardar Licor'}
               </button>
             </form>

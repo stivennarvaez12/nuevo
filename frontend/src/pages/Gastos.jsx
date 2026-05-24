@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { TrendingDown, PlusCircle, DollarSign, FileText, Calendar, ReceiptText } from 'lucide-react';
+import { TrendingDown, PlusCircle, DollarSign, FileText, Calendar, ReceiptText, Loader2 } from 'lucide-react';
 
 export default function Gastos() {
   const [gastos, setGastos] = useState([]);
@@ -62,105 +62,115 @@ export default function Gastos() {
     }
   };
 
-  // CORREGIDO: Evita valores nulos o indefinidos que puedan romper la suma total
+  // Evita valores nulos o indefinidos que puedan romper la suma total
   const totalGastos = gastos.reduce((sum, item) => sum + Number(item.monto || 0), 0);
 
   return (
-    <div className="flex flex-col lg:flex-row gap-6 h-[calc(100vh-6rem)] animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="flex flex-col lg:flex-row gap-4 sm:gap-6 min-h-screen lg:h-[calc(100vh-6rem)] pb-28 lg:pb-0 animate-in fade-in slide-in-from-bottom-4 duration-500">
       
-      {/* PANEL IZQUIERDO: FORMULARIO DE GASTOS */}
-      <div className="w-full lg:w-1/3 bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col overflow-hidden h-fit">
-        <div className="p-5 border-b border-gray-100 bg-red-50">
-          <h2 className="text-xl font-bold text-red-900 flex items-center gap-2">
-            <TrendingDown className="text-red-500" />
+      {/* PANEL IZQUIERDO: FORMULARIO DE GASTOS (Fijo arriba en móvil, lateral en PC) */}
+      <div className="w-full lg:w-1/3 bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col overflow-hidden shrink-0 h-fit">
+        <div className="p-4 sm:p-5 border-b border-gray-100 bg-red-50">
+          <h2 className="text-lg sm:text-xl font-bold text-red-900 flex items-center gap-2">
+            <TrendingDown className="text-red-500" size={20} />
             Registrar Gasto
           </h2>
-          <p className="text-sm text-red-700/70 mt-1">Ingresa los egresos operativos del negocio.</p>
+          <p className="text-xs sm:text-sm text-red-700/70 mt-0.5">Ingresa los egresos operativos del negocio.</p>
         </div>
 
-        <form onSubmit={registrarGasto} className="p-5 space-y-5">
+        <form onSubmit={registrarGasto} className="p-4 sm:p-5 space-y-3 sm:space-y-4">
           {/* Input Descripción */}
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Descripción del Gasto</label>
+            <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1.5">Descripción del Gasto</label>
             <div className="relative">
-              <FileText className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+              <FileText className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
               <input 
                 type="text" 
                 placeholder="Ej. Recibo de luz, Arriendo, Hielo..." 
                 value={descripcion}
                 onChange={(e) => setDescripcion(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-red-500 outline-none transition-all text-sm"
+                className="w-full pl-9 pr-4 py-2.5 sm:py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-red-500 outline-none transition-all text-xs sm:text-sm"
+                required
               />
             </div>
           </div>
 
           {/* Input Monto */}
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Monto ($)</label>
+            <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1.5">Monto ($)</label>
             <div className="relative">
-              <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+              <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
               <input 
                 type="number" 
                 placeholder="Ej. 50000" 
                 value={monto}
                 onChange={(e) => setMonto(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-red-500 outline-none transition-all text-sm font-bold"
+                className="w-full pl-9 pr-4 py-2.5 sm:py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-red-500 outline-none transition-all text-xs sm:text-sm font-black text-black"
+                required
               />
             </div>
           </div>
 
           <button 
             type="submit"
-            className="w-full py-3.5 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold flex items-center justify-center gap-2 transition-all active:scale-95 shadow-md mt-4"
+            className="w-full py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl font-black text-xs sm:text-sm uppercase tracking-wider flex items-center justify-center gap-2 transition-all active:scale-95 shadow-md mt-2"
           >
-            <PlusCircle size={20} />
+            <PlusCircle size={18} />
             Guardar Gasto
           </button>
         </form>
       </div>
 
-      {/* PANEL DERECHO: HISTORIAL DE GASTOS */}
-      <div className="flex-1 bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col overflow-hidden">
-        <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-          <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-            <ReceiptText size={20} className="text-gray-500" />
+      {/* PANEL DERECHO: HISTORIAL DE GASTOS (Ocupa el resto de pantalla en móvil con scroll propio) */}
+      <div className="flex-1 bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col h-[50vh] lg:h-full overflow-hidden">
+        <div className="p-4 sm:p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+          <h2 className="text-base sm:text-lg font-bold text-gray-800 flex items-center gap-2">
+            <ReceiptText size={18} className="text-gray-500" />
             Historial de Egresos
           </h2>
-          <div className="bg-red-100 text-red-800 px-4 py-1.5 rounded-lg font-bold shadow-sm">
+          <div className="bg-red-100 text-red-800 px-3 py-1.5 rounded-lg font-black text-xs sm:text-sm shadow-sm shrink-0">
             Total: ${totalGastos.toLocaleString('es-CO')}
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-5 custom-scrollbar">
+        <div className="flex-1 overflow-y-auto p-3 sm:p-5 bg-gray-50/20">
           {loading ? (
-            <div className="text-center text-gray-400 py-10 animate-pulse">Cargando historial...</div>
+            <div className="flex justify-center items-center h-full text-gray-400 flex-col gap-2 py-10">
+              <Loader2 className="animate-spin text-red-500" size={24} />
+              <span className="text-xs font-medium">Sincronizando egresos...</span>
+            </div>
           ) : gastos.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center text-gray-400 space-y-3 py-10">
-              <TrendingDown size={48} className="opacity-20" />
-              <p className="text-sm font-medium">Aún no hay gastos registrados.</p>
+            <div className="h-full flex flex-col items-center justify-center text-gray-400 gap-2 py-10">
+              <TrendingDown size={36} className="opacity-20" />
+              <p className="text-xs font-medium">Aún no hay gastos registrados.</p>
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-2.5">
               {gastos.map((gasto, index) => (
-                <div key={gasto.id || gasto.id_gasto || index} className="flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl hover:shadow-md transition-shadow">
-                  <div className="flex items-center gap-4">
-                    <div className="bg-red-50 text-red-500 p-3 rounded-xl">
-                      <TrendingDown size={20} />
+                <div 
+                  key={gasto.id || gasto.id_gasto || index} 
+                  className="flex justify-between items-center p-3 sm:p-4 bg-white border border-gray-100 rounded-xl hover:shadow-md transition-shadow shadow-sm gap-2"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="bg-red-50 text-red-500 p-2 sm:p-3 rounded-xl shrink-0">
+                      <TrendingDown size={16} />
                     </div>
-                    <div>
-                      <h4 className="font-bold text-gray-800">{gasto.descripcion}</h4>
-                      <div className="flex items-center text-xs text-gray-500 mt-1 gap-1">
-                        <Calendar size={12} />
-                        {gasto.fecha || gasto.fecha_gasto ? (
-                          new Date(gasto.fecha || gasto.fecha_gasto).toLocaleString('es-CO', { timeZone: 'America/Bogota' })
-                        ) : (
-                          "Fecha no disponible"
-                        )}
+                    <div className="min-w-0">
+                      <h4 className="font-bold text-gray-800 text-xs sm:text-sm truncate">{gasto.descripcion}</h4>
+                      <div className="flex items-center text-[10px] text-gray-400 mt-0.5 gap-1 font-medium">
+                        <Calendar size={11} />
+                        <span className="truncate">
+                          {gasto.fecha || gasto.fecha_gasto ? (
+                            new Date(gasto.fecha || gasto.fecha_gasto).toLocaleString('es-CO', { timeZone: 'America/Bogota', dateStyle: 'short', timeStyle: 'short' })
+                          ) : (
+                            "Fecha no disponible"
+                          )}
+                        </span>
                       </div>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <span className="font-black text-red-600 text-lg">
+                  <div className="text-right shrink-0">
+                    <span className="font-black text-red-600 text-sm sm:text-base whitespace-nowrap">
                       -${Number(gasto.monto || 0).toLocaleString('es-CO')}
                     </span>
                   </div>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ShoppingBag, Search, Plus, Minus, Trash2, CheckCircle, Package } from 'lucide-react';
+import { ShoppingBag, Search, Plus, Minus, Trash2, CheckCircle, Package, Loader2 } from 'lucide-react';
 
 export default function Compras() {
   const [productos, setProductos] = useState([]);
@@ -7,7 +7,7 @@ export default function Compras() {
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
 
-  // Cargar productos de la base de datos - URL unificada
+  // Cargar productos de la base de datos
   const cargarProductos = async () => {
     try {
       setLoading(true);
@@ -56,7 +56,7 @@ export default function Compras() {
     }));
   };
 
-  // CORREGIDO: Evita guardar strings vacíos en el precio de costo al manipular el input
+  // Manejar el precio de costo evitando strings vacíos erróneos
   const cambiarPrecioCosto = (id, nuevoPrecio) => {
     const valorNumerico = nuevoPrecio === '' ? 0 : Number(nuevoPrecio);
     setCarrito(carrito.map(item => 
@@ -84,7 +84,6 @@ export default function Compras() {
     const idUsuario = localStorage.getItem('id_usuario') || 1; 
 
     try {
-      // CORREGIDO: Payload unificado mapeando explícitamente id como id_producto para blindar el backend
       const comprasPayload = {
         id_usuario: Number(idUsuario),
         total_compradecimal: totalCompra,
@@ -116,104 +115,110 @@ export default function Compras() {
   };
 
   return (
-    <div className="flex flex-col lg:flex-row gap-6 h-[calc(100vh-6rem)] animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="flex flex-col lg:flex-row gap-4 sm:gap-6 min-h-screen lg:h-[calc(100vh-6rem)] pb-28 lg:pb-0 animate-in fade-in slide-in-from-bottom-4 duration-500">
       
-      {/* PANEL IZQUIERDO: CATÁLOGO DE PRODUCTOS */}
-      <div className="flex-1 bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col overflow-hidden">
-        <div className="p-5 border-b border-gray-100">
-          <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-            <Package className="text-indigo-500" />
+      {/* PANEL IZQUIERDO: CATÁLOGO DE PRODUCTOS (Se reacomoda arriba en móvil y con scroll interno) */}
+      <div className="flex-1 bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col h-[50vh] lg:h-full overflow-hidden">
+        <div className="p-4 sm:p-5 border-b border-gray-100 bg-gray-50/50">
+          <h2 className="text-base sm:text-xl font-bold text-gray-800 flex items-center gap-2">
+            <Package className="text-indigo-500" size={20} />
             Ingreso de Mercancía
           </h2>
-          <p className="text-sm text-gray-500 mt-1">Selecciona los productos que estás recibiendo del proveedor.</p>
+          <p className="text-xs sm:text-sm text-gray-500 mt-0.5">Selecciona los productos recibidos del proveedor.</p>
           
-          <div className="mt-4 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+          <div className="mt-3 relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
             <input 
               type="text" 
               placeholder="Buscar por nombre o categoría..." 
-              className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-sm"
+              className="w-full pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-xs sm:text-sm shadow-sm"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-5 custom-scrollbar">
+        <div className="flex-1 overflow-y-auto p-3 sm:p-5 bg-gray-50/20">
           {loading ? (
-            <div className="text-center text-gray-400 py-10 animate-pulse">Cargando catálogo...</div>
+            <div className="flex justify-center items-center h-full text-gray-400 flex-col gap-2 py-10">
+              <Loader2 className="animate-spin text-indigo-500" size={24} />
+              <span className="text-xs font-medium">Sincronizando licores...</span>
+            </div>
           ) : productosFiltrados.length === 0 ? (
-            <div className="text-center text-gray-400 py-10">No se encontraron productos coincidentes.</div>
+            <div className="text-center text-gray-400 text-xs py-10">No se encontraron productos coincidentes.</div>
           ) : (
-            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2.5 sm:gap-4">
               {productosFiltrados.map((prod) => (
-                <div 
+                <button 
                   key={prod.id} 
+                  type="button"
                   onClick={() => agregarAlCarrito(prod)}
-                  className="bg-white border border-gray-100 rounded-xl p-4 cursor-pointer hover:border-indigo-300 hover:shadow-md transition-all group flex flex-col items-center text-center relative"
+                  className="bg-white border border-gray-100 rounded-xl p-3 hover:border-indigo-300 hover:shadow-md transition-all flex flex-col items-center text-center relative active:scale-95 shadow-sm"
                 >
-                  <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                  <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gray-50 rounded-full flex items-center justify-center mb-2 shrink-0">
                     {prod.imagen ? (
-                      <img src={`https://nuevo-98vm.onrender.com/uploads/${prod.imagen}`} alt={prod.nombre} className="w-12 h-12 object-cover rounded-full" />
+                      <img src={`https://nuevo-98vm.onrender.com/uploads/${prod.imagen}`} alt={prod.nombre} className="w-9 h-9 sm:w-10 sm:h-10 object-cover rounded-full" />
                     ) : (
-                      <Package size={24} className="text-gray-400" />
+                      <Package size={18} className="text-gray-300" />
                     )}
                   </div>
-                  <h3 className="font-bold text-gray-800 text-sm leading-tight">{prod.nombre}</h3>
-                  <span className="text-xs text-gray-500 mt-1">{prod.categoria}</span>
-                  <div className="mt-2 bg-indigo-50 text-indigo-700 text-xs px-2 py-1 rounded-md font-medium">
-                    Stock actual: {prod.stock}
+                  <h3 className="font-bold text-gray-800 text-xs leading-tight line-clamp-2 min-h-[2rem]">{prod.nombre}</h3>
+                  <span className="text-[10px] text-gray-400 mt-0.5 truncate w-full">{prod.categoria}</span>
+                  <div className="mt-2 bg-indigo-50 text-indigo-700 text-[10px] px-1.5 py-0.5 rounded font-black w-full">
+                    Stock: {prod.stock}
                   </div>
-                </div>
+                </button>
               ))}
             </div>
           )}
         </div>
       </div>
 
-      {/* PANEL DERECHO: DETALLE DE LA COMPRA */}
-      <div className="w-full lg:w-96 bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col overflow-hidden">
-        <div className="p-5 border-b border-gray-100 bg-indigo-50">
-          <h2 className="text-lg font-bold text-indigo-900 flex items-center gap-2">
-            <ShoppingBag size={20} />
-            Orden de Compra
-          </h2>
+      {/* PANEL DERECHO: DETALLE DE LA COMPRA (Se adapta al ancho en móvil y se ubica abajo) */}
+      <div className="w-full lg:w-96 bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col h-[40vh] lg:h-full overflow-hidden shrink-0">
+        <div className="p-4 border-b border-gray-100 bg-indigo-900 text-white flex items-center gap-2">
+          <ShoppingBag size={18} className="text-amber-400" />
+          <h2 className="text-sm font-black uppercase tracking-wider">Orden de Compra</h2>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 custom-scrollbar space-y-3">
+        <div className="flex-1 overflow-y-auto p-3 bg-gray-50/50 space-y-2">
           {carrito.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center text-gray-400 space-y-3 py-10">
-              <ShoppingBag size={48} className="opacity-20" />
-              <p className="text-sm font-medium">No hay productos en la orden</p>
+            <div className="h-full flex flex-col items-center justify-center text-gray-400 gap-2 py-10">
+              <ShoppingBag size={32} className="opacity-20" />
+              <p className="text-xs font-bold">No hay productos en la orden</p>
             </div>
           ) : (
             carrito.map((item) => (
-              <div key={item.id} className="bg-white border border-gray-100 rounded-xl p-3 shadow-sm flex flex-col gap-3">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <h4 className="font-bold text-sm text-gray-800">{item.nombre}</h4>
-                    <span className="text-xs text-gray-500">Stock: {item.stock} &rarr; Quedará en: {Number(item.stock) + Number(item.cantidad)}</span>
+              <div key={item.id} className="bg-white border border-gray-100 rounded-xl p-3 shadow-sm flex flex-col gap-2">
+                <div className="flex justify-between items-start gap-2">
+                  <div className="min-w-0 flex-1">
+                    <h4 className="font-bold text-xs text-gray-800 truncate">{item.nombre}</h4>
+                    <p className="text-[10px] text-gray-500 mt-0.5 font-medium">
+                      Stock: {item.stock} &rarr; <span className="text-indigo-600 font-bold">Quedará en: {Number(item.stock) + Number(item.cantidad)}</span>
+                    </p>
                   </div>
-                  <button onClick={() => eliminarDelCarrito(item.id)} className="text-red-400 hover:text-red-600 p-1">
-                    <Trash2 size={16} />
+                  <button type="button" onClick={() => eliminarDelCarrito(item.id)} className="text-red-400 hover:text-red-600 p-1 shrink-0">
+                    <Trash2 size={14} />
                   </button>
                 </div>
                 
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center bg-gray-50 rounded-lg border border-gray-200">
-                    <button onClick={() => cambiarCantidad(item.id, -1)} className="p-1.5 text-gray-600 hover:bg-gray-200 rounded-l-lg transition-colors"><Minus size={14} /></button>
-                    <span className="w-8 text-center text-sm font-bold">{item.cantidad}</span>
-                    <button onClick={() => cambiarCantidad(item.id, 1)} className="p-1.5 text-gray-600 hover:bg-gray-200 rounded-r-lg transition-colors"><Plus size={14} /></button>
+                <div className="flex items-center justify-between pt-1 border-t border-gray-50">
+                  {/* Controladores de cantidad adaptados al pulgar */}
+                  <div className="flex items-center bg-gray-50 rounded-lg border border-gray-200 p-0.5">
+                    <button type="button" onClick={() => cambiarCantidad(item.id, -1)} className="p-1 text-gray-600 rounded-l-lg"><Minus size={12} /></button>
+                    <span className="w-6 text-center text-xs font-black text-black">{item.cantidad}</span>
+                    <button type="button" onClick={() => cambiarCantidad(item.id, 1)} className="p-1 text-gray-600 rounded-r-lg"><Plus size={12} /></button>
                   </div>
                   
+                  {/* Entrada de costo unitario */}
                   <div className="flex items-center gap-1">
-                    <span className="text-gray-500 font-medium text-sm">$</span>
+                    <span className="text-gray-400 font-bold text-xs">$</span>
                     <input 
                       type="number" 
                       placeholder="Costo U."
                       value={item.precio_costo || ''}
                       onChange={(e) => cambiarPrecioCosto(item.id, e.target.value)}
-                      className="w-24 px-2 py-1 text-sm border border-gray-300 rounded-md focus:ring-1 focus:ring-indigo-500 outline-none text-right font-bold"
+                      className="w-20 sm:w-24 px-2 py-1 text-xs border border-gray-200 bg-gray-50 rounded-lg focus:ring-1 focus:ring-indigo-500 outline-none text-right font-black text-black"
                     />
                   </div>
                 </div>
@@ -222,16 +227,18 @@ export default function Compras() {
           )}
         </div>
 
-        <div className="p-5 border-t border-gray-100 bg-gray-50">
-          <div className="flex justify-between items-center mb-4">
-            <span className="text-gray-600 font-medium">Total Inversión:</span>
-            <span className="text-2xl font-black text-gray-900">${totalCompra.toLocaleString('es-CO')}</span>
+        {/* Bloque final de Totales y Despacho */}
+        <div className="p-4 border-t border-gray-100 bg-white">
+          <div className="flex justify-between items-center mb-3">
+            <span className="text-xs text-gray-400 font-bold uppercase">Total Inversión:</span>
+            <span className="text-xl font-black text-gray-900">${totalCompra.toLocaleString('es-CO')}</span>
           </div>
           <button 
+            type="button"
             onClick={registrarCompra}
-            className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold flex items-center justify-center gap-2 transition-all active:scale-95 shadow-md"
+            className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all active:scale-95 shadow-md"
           >
-            <CheckCircle size={20} />
+            <CheckCircle size={16} />
             Registrar Compra y Stock
           </button>
         </div>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { UserPlus, Users, Shield, Mail, Trash2, User, Key } from 'lucide-react';
+import { UserPlus, Users, Shield, Mail, Trash2, User, Key, ChevronDown } from 'lucide-react';
 
 const Usuarios = () => {
   const [usuarios, setUsuarios] = useState([]);
@@ -77,40 +77,88 @@ const Usuarios = () => {
   };
 
   return (
-    <div className="p-6 bg-gray-50 min-h-screen">
-      <div className="max-w-6xl mx-auto flex flex-col lg:flex-row gap-8">
+    <div className="space-y-6 pb-24 lg:pb-0 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="max-w-6xl mx-auto flex flex-col-reverse lg:flex-row gap-6 items-start">
         
-        {/* FORMULARIO */}
-        <div className="w-full lg:w-1/3 bg-white p-6 rounded-3xl shadow-sm border border-gray-100 h-fit">
-          <h2 className="text-xl font-bold text-indigo-600 mb-6 flex items-center gap-2">
-            <UserPlus /> Nuevo Empleado
+        {/* LISTA DE PERSONAL ACTIVO (ARRIBA EN MÓVILES) */}
+        <div className="flex-1 w-full bg-white rounded-2xl sm:rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="p-4 sm:p-6 border-b border-gray-100 bg-white">
+            <h2 className="text-base sm:text-lg font-black flex items-center gap-2 text-gray-950 tracking-tight">
+              <Users className="text-indigo-600 shrink-0" size={20} /> Personal Activo
+            </h2>
+          </div>
+          
+          <div className="p-4 sm:p-6 grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+            {usuarios.length === 0 ? (
+              <p className="text-xs sm:text-sm text-gray-400 col-span-2 text-center py-8 font-medium">
+                No hay empleados registrados activos.
+              </p>
+            ) : (
+              usuarios.map((u) => (
+                <div key={u.id_usuario || u.id} className="p-4 bg-gray-50/60 rounded-xl sm:rounded-2xl border border-gray-100 flex justify-between items-center gap-2 transition-all hover:border-gray-200">
+                  <div className="flex gap-3 min-w-0 items-center">
+                    <div className="p-2.5 bg-indigo-100 text-indigo-600 rounded-xl shrink-0 invisible sm:visible sm:block">
+                      <User size={18} />
+                    </div>
+                    <div className="min-w-0 space-y-0.5">
+                      <p className="font-bold text-gray-900 text-sm sm:text-base leading-tight truncate">
+                        {u.nombre || "Sin Nombre"}
+                      </p>
+                      <p className="text-[11px] text-gray-400 truncate">{u.email || "Sin Correo"}</p>
+                      <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 bg-white border border-gray-200 rounded-md text-indigo-600 mt-1 inline-block">
+                        {u.nombre_rol || u.rol || 'Empleado'}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  <button 
+                    onClick={() => eliminar(u.id_usuario || u.id)} 
+                    className="text-red-400 hover:text-red-600 p-2 rounded-lg hover:bg-red-50 transition-colors shrink-0"
+                    title="Eliminar usuario"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* FORMULARIO DE REGISTRO (ABAJO EN MÓVILES) */}
+        <div className="w-full lg:w-80 xl:w-96 bg-white p-4 sm:p-6 rounded-2xl sm:rounded-3xl shadow-sm border border-gray-100 lg:sticky lg:top-6 shrink-0">
+          <h2 className="text-base sm:text-lg font-black text-gray-950 mb-4 flex items-center gap-2">
+            <UserPlus className="text-indigo-600 shrink-0" size={20} /> Nuevo Empleado
           </h2>
-          <form onSubmit={registrar} className="space-y-4">
+          
+          <form onSubmit={registrar} className="space-y-3.5">
             <div className="relative">
-              <User className="absolute left-3 top-3 text-gray-400" size={18} />
+              <User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
               <input 
-                className="w-full pl-10 p-3 bg-gray-50 border rounded-xl outline-none focus:ring-2 focus:ring-indigo-400"
+                className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-100 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 text-xs sm:text-sm font-medium transition-all"
                 placeholder="Nombre completo" value={nombre} onChange={e => setNombre(e.target.value)} required 
               />
             </div>
+            
             <div className="relative">
-              <Mail className="absolute left-3 top-3 text-gray-400" size={18} />
+              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
               <input 
-                className="w-full pl-10 p-3 bg-gray-50 border rounded-xl outline-none focus:ring-2 focus:ring-indigo-400"
+                className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-100 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 text-xs sm:text-sm font-medium transition-all"
                 placeholder="Correo electrónico" type="email" value={email} onChange={e => setEmail(e.target.value)} required 
               />
             </div>
+            
             <div className="relative">
-              <Key className="absolute left-3 top-3 text-gray-400" size={18} />
+              <Key className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
               <input 
-                className="w-full pl-10 p-3 bg-gray-50 border rounded-xl outline-none focus:ring-2 focus:ring-indigo-400"
+                className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-100 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 text-xs sm:text-sm font-medium transition-all"
                 placeholder="Contraseña" type="password" value={password} onChange={e => setPassword(e.target.value)} required 
               />
             </div>
+            
             <div className="relative">
-              <Shield className="absolute left-3 top-3 text-gray-400" size={18} />
+              <Shield className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 z-10" size={16} />
               <select 
-                className="w-full pl-10 p-3 bg-gray-50 border rounded-xl outline-none focus:ring-2 focus:ring-indigo-400 appearance-none"
+                className="w-full pl-9 pr-10 py-2.5 bg-gray-50 border border-gray-100 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 text-xs sm:text-sm font-medium transition-all appearance-none cursor-pointer relative z-0"
                 value={idRol} onChange={e => setIdRol(e.target.value)} required
               >
                 <option value="">Seleccionar Rol</option>
@@ -120,46 +168,15 @@ const Usuarios = () => {
                   </option>
                 ))}
               </select>
+              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={16} />
             </div>
-            <button className="w-full py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100">
+            
+            <button className="w-full py-3 bg-indigo-600 text-white rounded-xl font-black text-xs uppercase tracking-wider hover:bg-indigo-700 transition-all shadow-md active:scale-95 mt-2">
               Crear Usuario
             </button>
           </form>
         </div>
 
-        {/* LISTA */}
-        <div className="flex-1 bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="p-6 border-b flex justify-between items-center bg-white">
-            <h2 className="text-lg font-bold flex items-center gap-2 text-gray-800">
-              <Users className="text-indigo-500" /> Personal Activo
-            </h2>
-          </div>
-          <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-            {usuarios.length === 0 ? (
-              <p className="text-sm text-gray-400 col-span-2 text-center py-4">No hay empleados registrados activos.</p>
-            ) : (
-              usuarios.map((u) => (
-                <div key={u.id_usuario || u.id} className="p-4 bg-gray-50 rounded-2xl border border-gray-100 flex justify-between items-center">
-                  <div className="flex gap-3">
-                    <div className="p-3 bg-indigo-100 text-indigo-600 rounded-xl">
-                      <User size={20} />
-                    </div>
-                    <div>
-                      <p className="font-bold text-gray-800 leading-tight">{u.nombre || "Sin Nombre"}</p>
-                      <p className="text-[11px] text-gray-400">{u.email || "Sin Correo"}</p>
-                      <span className="text-[9px] font-black uppercase px-2 py-0.5 bg-white border border-gray-200 rounded-md text-indigo-500 mt-1 inline-block">
-                        {u.nombre_rol || u.rol || 'Empleado'}
-                      </span>
-                    </div>
-                  </div>
-                  <button onClick={() => eliminar(u.id_usuario || u.id)} className="text-red-400 hover:text-red-600 p-2 transition-colors">
-                    <Trash2 size={18} />
-                  </button>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
       </div>
     </div>
   );
