@@ -190,16 +190,17 @@ export default function Ventas() {
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {productosFiltrados.map((producto) => {
-                let campoFoto = producto.imagen || producto.imagen_url || producto.url_imagen || producto.foto || '';
+                const nombreImagen = producto.imagen || '';
                 let urlDeLaFoto = '';
 
-                if (campoFoto) {
-                  {/* 🛠️ AUTO-CONSTRUCTOR INTELLIGENT: Si el backend manda solo la ruta relativa, le pegamos el dominio de Render al inicio */}
-                  if (campoFoto.startsWith('http://') || campoFoto.startsWith('https://')) {
-                    urlDeLaFoto = campoFoto;
+                if (nombreImagen) {
+                  // Si por alguna razón ya viene con HTTP completa (ej. guardada a mano)
+                  if (nombreImagen.startsWith('http://') || nombreImagen.startsWith('https://')) {
+                    urlDeLaFoto = nombreImagen;
                   } else {
-                    const rutaLimpia = campoFoto.startsWith('/') ? campoFoto : `/${campoFoto}`;
-                    urlDeLaFoto = `https://nuevo-98vm.onrender.com${rutaLimpia}`;
+                    {/* 🛠️ ARREGLADO AQUÍ: Añadimos obligatoriamente la subcarpeta '/uploads/' que pide Express */}
+                    const archivoLimpio = nombreImagen.startsWith('/') ? nombreImagen.substring(1) : nombreImagen;
+                    urlDeLaFoto = `https://nuevo-98vm.onrender.com/uploads/${archivoLimpio}`;
                   }
                 }
 
@@ -231,9 +232,9 @@ export default function Ventas() {
                     </div>
 
                     <div className="w-full text-center">
-                      <p className="font-black text-gray-950 text-[11px] sm:text-xs line-clamp-2 min-h-[2rem] leading-tight tracking-tight text-left sm:text-center">{producto.nombre}</p>
-                      <p className="text-[9px] font-bold text-gray-400 mt-0.5 uppercase tracking-wider text-left sm:text-center">Stock: {producto.stock} und</p>
-                      <p className="font-black text-xs sm:text-sm text-amber-600 mt-1 text-left sm:text-center">${Number(producto.precio).toLocaleString('es-CO')}</p>
+                      <p className="font-black text-gray-950 text-[11px] sm:text-xs line-clamp-2 min-h-[2rem] leading-tight tracking-tight text-center">{producto.nombre}</p>
+                      <p className="text-[9px] font-bold text-gray-400 mt-0.5 uppercase tracking-wider text-center">Stock: {producto.stock} und</p>
+                      <p className="font-black text-xs sm:text-sm text-amber-600 mt-1 text-center">${Number(producto.precio).toLocaleString('es-CO')}</p>
                     </div>
                   </button>
                 );
