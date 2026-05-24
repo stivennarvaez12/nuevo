@@ -189,41 +189,49 @@ export default function Ventas() {
             </div>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              {productosFiltrados.map((producto) => (
-                <button 
-                  key={producto.id}
-                  onClick={() => agregarAlCarrito(producto)}
-                  className="bg-white border border-gray-100 rounded-2xl p-3 flex flex-col items-center gap-2 hover:border-black hover:shadow-md transition-all active:scale-95"
-                >
-                  <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gray-50 rounded-xl overflow-hidden flex items-center justify-center border border-gray-100 relative">
-                    {producto.imagen ? (
-                      <img 
-                        src={producto.imagen} 
-                        alt={producto.nombre} 
-                        className="w-full h-full object-cover object-center"
-                        onError={(e) => {
-                          e.target.onerror = null;
-                          e.target.style.display = 'none';
-                          e.target.nextSibling.style.display = 'flex';
-                        }}
-                      />
-                    ) : null}
-                    <div 
-                      className="absolute inset-0 flex items-center justify-center bg-gray-50 text-gray-300"
-                      style={{ display: producto.imagen ? 'none' : 'flex' }}
-                    >
-                      <Wine size={24} />
-                    </div>
-                  </div>
+              {productosFiltrados.map((producto) => {
+                {/* 🔍 LOG DE SEGURIDAD: Te permite ver en la consola de tu navegador cómo viene guardada la url */}
+                console.log("Datos de este licor:", producto);
+                
+                {/* Intentamos leer de cualquier formato que use tu base de datos */}
+                const urlDeLaFoto = producto.imagen || producto.imagen_url || producto.url_imagen || producto.foto || null;
 
-                  <div className="w-full text-center">
-                    <p className="font-black text-gray-950 text-[11px] sm:text-xs line-clamp-2 min-h-[2rem] leading-tight tracking-tight">{producto.nombre}</p>
-                    <p className="text-[9px] font-bold text-gray-400 mt-0.5 uppercase tracking-wider">Stock: {producto.stock} und</p>
-                    {/* 🛠️ ARREGLADO AQUÍ: Imprime el precio limpio y formateado correctamente */}
-                    <p className="font-black text-xs sm:text-sm text-amber-600 mt-1">${Number(producto.precio).toLocaleString('es-CO')}</p>
-                  </div>
-                </button>
-              ))}
+                return (
+                  <button 
+                    key={producto.id}
+                    onClick={() => agregarAlCarrito(producto)}
+                    className="bg-white border border-gray-100 rounded-2xl p-3 flex flex-col items-center gap-2 hover:border-black hover:shadow-md transition-all active:scale-95"
+                  >
+                    <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gray-50 rounded-xl overflow-hidden flex items-center justify-center border border-gray-100 relative">
+                      {urlDeLaFoto ? (
+                        <img 
+                          src={urlDeLaFoto} 
+                          alt={producto.nombre} 
+                          className="w-full h-full object-cover object-center"
+                          onError={(e) => {
+                            // Si la URL está rota o mal guardada, oculta la imagen rota y deja la copa limpia
+                            e.target.style.display = 'none';
+                            const fallback = e.target.nextSibling;
+                            if (fallback) fallback.style.display = 'flex';
+                          }}
+                        />
+                      ) : null}
+                      <div 
+                        className="absolute inset-0 flex items-center justify-center bg-gray-50 text-gray-400/70"
+                        style={{ display: urlDeLaFoto ? 'none' : 'flex' }}
+                      >
+                        <Wine size={24} />
+                      </div>
+                    </div>
+
+                    <div className="w-full text-center">
+                      <p className="font-black text-gray-950 text-[11px] sm:text-xs line-clamp-2 min-h-[2rem] leading-tight tracking-tight text-left sm:text-center">{producto.nombre}</p>
+                      <p className="text-[9px] font-bold text-gray-400 mt-0.5 uppercase tracking-wider text-left sm:text-center">Stock: {producto.stock} und</p>
+                      <p className="font-black text-xs sm:text-sm text-amber-600 mt-1 text-left sm:text-center">${Number(producto.precio).toLocaleString('es-CO')}</p>
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           )}
         </div>
@@ -263,7 +271,7 @@ export default function Ventas() {
                   <button type="button" onClick={() => modificarCantidad(item.id, -1)} className="p-1 text-gray-500 hover:bg-gray-200 rounded"><Minus size={12} /></button>
                   <input
                     type="number"
-                    value={item.disabled ? 1 : item.cantidad}
+                    value={item.cantidad === '' ? '' : item.cantidad}
                     onChange={(e) => handleCantidadManual(item.id, e.target.value)}
                     onBlur={(e) => validarBlurCantidad(item.id, e.target.value)}
                     className="font-black text-xs w-6 text-center bg-transparent outline-none border-none p-0"
@@ -291,7 +299,7 @@ export default function Ventas() {
         </div>
       </div>
 
-      {/* MODAL */}
+      {/* MODAL PAGO */}
       {mostrarModal && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4">
           <div className="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl overflow-hidden flex flex-col max-h-[90vh] shadow-2xl">
