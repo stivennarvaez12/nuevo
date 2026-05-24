@@ -190,11 +190,18 @@ export default function Ventas() {
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {productosFiltrados.map((producto) => {
-                {/* 🔍 LOG DE SEGURIDAD: Te permite ver en la consola de tu navegador cómo viene guardada la url */}
-                console.log("Datos de este licor:", producto);
-                
-                {/* Intentamos leer de cualquier formato que use tu base de datos */}
-                const urlDeLaFoto = producto.imagen || producto.imagen_url || producto.url_imagen || producto.foto || null;
+                let campoFoto = producto.imagen || producto.imagen_url || producto.url_imagen || producto.foto || '';
+                let urlDeLaFoto = '';
+
+                if (campoFoto) {
+                  {/* 🛠️ AUTO-CONSTRUCTOR INTELLIGENT: Si el backend manda solo la ruta relativa, le pegamos el dominio de Render al inicio */}
+                  if (campoFoto.startsWith('http://') || campoFoto.startsWith('https://')) {
+                    urlDeLaFoto = campoFoto;
+                  } else {
+                    const rutaLimpia = campoFoto.startsWith('/') ? campoFoto : `/${campoFoto}`;
+                    urlDeLaFoto = `https://nuevo-98vm.onrender.com${rutaLimpia}`;
+                  }
+                }
 
                 return (
                   <button 
@@ -209,7 +216,6 @@ export default function Ventas() {
                           alt={producto.nombre} 
                           className="w-full h-full object-cover object-center"
                           onError={(e) => {
-                            // Si la URL está rota o mal guardada, oculta la imagen rota y deja la copa limpia
                             e.target.style.display = 'none';
                             const fallback = e.target.nextSibling;
                             if (fallback) fallback.style.display = 'flex';
