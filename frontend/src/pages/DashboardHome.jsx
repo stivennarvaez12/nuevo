@@ -40,27 +40,17 @@ export default function DashboardHome() {
 
   const listaAlertas = statsData.alertasStock || [];
 
-  const topProductos = statsData.topProductos.length > 0 ? statsData.topProductos : [
-    { nombre: "Aguardiente Antioqueño Azul", ventas: 142 },
-    { nombre: "Ron Medellín Añejo 3 Años", ventas: 98 },
-    { nombre: "Cerveza Águila Original", ventas: 85 },
-    { nombre: "Whisky Old Parr 12 Años", ventas: 42 },
-    { nombre: "Vodka Absolute", ventas: 29 }
-  ];
+  {/* 🛠️ REPARADO: Se eliminaron por completo los licores y clientes falsos quemados */}
+  const topProductos = (statsData.topProductos || []).slice(0, 10);
+  const topClientes = (statsData.topClientes || []).slice(0, 10);
 
-  const topClientes = statsData.topClientes.length > 0 ? statsData.topClientes : [
-    { nombre: "Juan Camilo Pérez", total_comprado: 450000 },
-    { nombre: "Andrés Felipe Mendoza", total_comprado: 320000 },
-    { nombre: "Diana Carolina Restrepo", total_comprado: 285000 }
-  ];
-
-  const maxVentas = topProductos.length > 0 ? Math.max(...topProductos.map(p => p.ventas)) : 100;
+  const maxVentas = topProductos.length > 0 ? Math.max(...topProductos.map(p => Number(p.ventas || p.cantidad || 0))) : 100;
 
   const stats = [
     { title: 'Ventas Totales', value: loading ? '...' : `$${Number(statsData.totalIngresos).toLocaleString('es-CO')}`, icon: <DollarSign size={16} className="text-emerald-500" />, bg: 'bg-emerald-50' },
     { title: 'Licores', value: loading ? '...' : Number(statsData.totalProductos).toString(), icon: <Package size={16} className="text-blue-500" />, bg: 'bg-blue-50' },
     { title: 'Alertas Stock', value: loading ? '...' : listaAlertas.length.toString(), icon: <AlertTriangle size={16} className={listaAlertas.length > 0 ? "text-red-500" : "text-gray-400"} />, bg: listaAlertas.length > 0 ? 'bg-red-50' : 'bg-gray-50' },
-    { title: 'Clientes', value: loading ? '...' : statsData.totalClientes > 0 ? statsData.totalClientes.toString() : (topClientes.length).toString(), icon: <Users size={16} className="text-purple-500" />, bg: 'bg-purple-50' },
+    { title: 'Clientes', value: loading ? '...' : Number(statsData.totalClientes).toString(), icon: <Users size={16} className="text-purple-500" />, bg: 'bg-purple-50' },
   ];
 
   return (
@@ -86,54 +76,67 @@ export default function DashboardHome() {
         ))}
       </div>
 
-      {/* DETALLE DE RENDIMIENTO */}
+      {/* DETALLE DE RENDIMIENTO EN TIEMPO REAL */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         
-        {/* TOP PRODUCTOS */}
+        {/* TOP PRODUCTOS REALES */}
         <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm space-y-3">
           <div className="flex items-center gap-2 pb-2 border-b">
             <TrendingUp size={16} />
-            <h2 className="font-black text-xs uppercase tracking-wider text-gray-700">Top Productos</h2>
+            <h2 className="font-black text-xs uppercase tracking-wider text-gray-700">Top Licores Más Vendidos</h2>
           </div>
           <div className="space-y-3">
-            {topProductos.map((producto, index) => {
-              const porcentaje = (producto.ventas / maxVentas) * 100;
-              return (
-                <div key={index} className="space-y-1">
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="font-bold text-gray-700 truncate max-w-[70%]">#{index + 1} {producto.nombre}</span>
-                    <span className="font-black text-black shrink-0 bg-gray-100 px-1.5 py-0.5 rounded text-[10px]">{producto.ventas} u</span>
+            {loading ? (
+              <div className="text-center text-gray-400 text-xs py-4">Cargando top...</div>
+            ) : topProductos.length === 0 ? (
+              <div className="text-center text-gray-400 text-xs py-6 italic">Ningún licor ha registrado ventas aún.</div>
+            ) : (
+              topProductos.map((producto, index) => {
+                const ventasActuales = Number(producto.ventas || producto.cantidad || 0);
+                const porcentaje = (ventasActuales / maxVentas) * 100;
+                return (
+                  <div key={index} className="space-y-1">
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="font-bold text-gray-700 truncate max-w-[70%]">#{index + 1} {producto.nombre}</span>
+                      <span className="font-black text-black shrink-0 bg-gray-100 px-1.5 py-0.5 rounded text-[10px]">{ventasActuales} u</span>
+                    </div>
+                    <div className="w-full bg-gray-50 h-1.5 rounded-full overflow-hidden">
+                      <div className="bg-black h-full rounded-full" style={{ width: `${porcentaje}%` }} />
+                    </div>
                   </div>
-                  <div className="w-full bg-gray-50 h-1.5 rounded-full overflow-hidden">
-                    <div className="bg-black h-full rounded-full" style={{ width: `${porcentaje}%` }} />
-                  </div>
-                </div>
-              );
-            })}
+                );
+              })
+            )}
           </div>
         </div>
 
-        {/* TOP CLIENTES */}
+        {/* TOP CLIENTES REALES */}
         <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm space-y-3">
           <div className="flex items-center gap-2 pb-2 border-b">
             <Award className="text-amber-500" size={16} />
-            <h2 className="font-black text-xs uppercase tracking-wider text-gray-700">Clientes Estrella</h2>
+            <h2 className="font-black text-xs uppercase tracking-wider text-gray-700">Top Clientes Premium</h2>
           </div>
           <div className="space-y-2">
-            {topClientes.map((cliente, index) => (
-              <div key={index} className="flex justify-between items-center bg-gray-50 p-2.5 rounded-xl text-xs">
-                <span className="font-bold text-gray-700 truncate">#{index + 1} {cliente.nombre}</span>
-                <span className="font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded text-[10px]">
-                  ${Number(cliente.total_comprado).toLocaleString('es-CO')}
-                </span>
-              </div>
-            ))}
+            {loading ? (
+              <div className="text-center text-gray-400 text-xs py-4">Cargando top...</div>
+            ) : topClientes.length === 0 ? (
+              <div className="text-center text-gray-400 text-xs py-6 italic">No hay historial de compras de clientes.</div>
+            ) : (
+              topClientes.map((cliente, index) => (
+                <div key={index} className="flex justify-between items-center bg-gray-50 p-2.5 rounded-xl text-xs">
+                  <span className="font-bold text-gray-700 truncate">#{index + 1} {cliente.nombre}</span>
+                  <span className="font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded text-[10px]">
+                    ${Number(cliente.total_comprado || cliente.total || 0).toLocaleString('es-CO')}
+                  </span>
+                </div>
+              ))
+            )}
           </div>
         </div>
 
       </div>
 
-      {/* 🏅 SECCIÓN DE ALERTAS REFORMADA: REGLA DE ORO CUMPLIDA (TARJETAS COMPACTAS) */}
+      {/* SECCIÓN DE ALERTAS */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         <div className="p-3 bg-gray-50 border-b flex items-center gap-2">
           <AlertTriangle className="text-red-500" size={16} />
