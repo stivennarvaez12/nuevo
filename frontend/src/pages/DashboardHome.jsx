@@ -39,8 +39,6 @@ export default function DashboardHome() {
   }, []);
 
   const listaAlertas = statsData.alertasStock || [];
-
-  {/* 🛠️ REPARADO: Se eliminaron por completo los licores y clientes falsos quemados */}
   const topProductos = (statsData.topProductos || []).slice(0, 10);
   const topClientes = (statsData.topClientes || []).slice(0, 10);
 
@@ -61,7 +59,6 @@ export default function DashboardHome() {
         <p className="text-gray-400 text-xs">Control de Licores Nicole.</p>
       </div>
 
-      {/* METRICAS 2 COLUMNAS FIJAS EN CELULAR */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {stats.map((stat, index) => (
           <div key={index} className="bg-white p-3 rounded-2xl border border-gray-100 flex items-center gap-2">
@@ -76,7 +73,6 @@ export default function DashboardHome() {
         ))}
       </div>
 
-      {/* DETALLE DE RENDIMIENTO EN TIEMPO REAL */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         
         {/* TOP PRODUCTOS REALES */}

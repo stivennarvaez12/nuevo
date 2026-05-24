@@ -105,7 +105,7 @@ export default function Ventas() {
 
   const validarBlurCantidad = (id, valor) => {
     if (valor === '' || Number(valor) < 1) {
-      setCarrito(carrito.map(item => item.id === id ? { ...item, candyId: 1, cantidad: 1 } : item));
+      setCarrito(carrito.map(item => item.id === id ? { ...item, cantidad: 1 } : item));
     }
   };
 
@@ -165,9 +165,9 @@ export default function Ventas() {
   };
 
   return (
-    <div className="flex flex-col lg:flex-row min-h-screen lg:h-[calc(100vh-6rem)] gap-4 pb-24 lg:pb-0 animate-in fade-in duration-300">
+    <div className="flex flex-col lg:flex-row min-h-screen lg:h-[calc(100vh-6rem)] gap-4 pb-24 lg:pb-0">
       
-      {/* CATÁLOGO DE BEBIDAS */}
+      {/* CATÁLOGO */}
       <div className="flex-[1.3] flex flex-col bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden min-h-[50vh] lg:min-h-0 lg:h-full">
         <div className="p-4 border-b border-gray-100 bg-gray-50">
           <div className="relative">
@@ -195,7 +195,6 @@ export default function Ventas() {
                   onClick={() => agregarAlCarrito(producto)}
                   className="bg-white border border-gray-100 rounded-2xl p-3 flex flex-col items-center gap-2 hover:border-black hover:shadow-md transition-all active:scale-95"
                 >
-                  {/* 🛠️ SOLUCIÓN AQUÍ: Se carga la imagen real del servidor y se agrega fallback si falla */}
                   <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gray-50 rounded-xl overflow-hidden flex items-center justify-center border border-gray-100 relative">
                     {producto.imagen ? (
                       <img 
@@ -203,7 +202,6 @@ export default function Ventas() {
                         alt={producto.nombre} 
                         className="w-full h-full object-cover object-center"
                         onError={(e) => {
-                          // Si la imagen guardada se cae, renderiza la copa de cortesía
                           e.target.onerror = null;
                           e.target.style.display = 'none';
                           e.target.nextSibling.style.display = 'flex';
@@ -221,7 +219,8 @@ export default function Ventas() {
                   <div className="w-full text-center">
                     <p className="font-black text-gray-950 text-[11px] sm:text-xs line-clamp-2 min-h-[2rem] leading-tight tracking-tight">{producto.nombre}</p>
                     <p className="text-[9px] font-bold text-gray-400 mt-0.5 uppercase tracking-wider">Stock: {producto.stock} und</p>
-                    <p className="font-black text-xs sm:text-sm text-amber-600 mt-1">${迫 = Number(producto.precio).toLocaleString('es-CO')}</p>
+                    {/* 🛠️ ARREGLADO AQUÍ: Imprime el precio limpio y formateado correctamente */}
+                    <p className="font-black text-xs sm:text-sm text-amber-600 mt-1">${Number(producto.precio).toLocaleString('es-CO')}</p>
                   </div>
                 </button>
               ))}
@@ -230,7 +229,7 @@ export default function Ventas() {
         </div>
       </div>
 
-      {/* CARRO / CAJA DE COBRO */}
+      {/* CARRO */}
       <div className="flex-1 bg-white rounded-3xl shadow-sm border border-gray-100 flex flex-col overflow-hidden min-h-[40vh] lg:min-h-0 lg:h-full">
         <div className="p-4 bg-gray-950 text-white flex items-center gap-2">
           <ShoppingCart size={16} className="text-amber-500" />
@@ -292,10 +291,10 @@ export default function Ventas() {
         </div>
       </div>
 
-      {/* MODAL DE CONFIRMACIÓN DE PAGO */}
+      {/* MODAL */}
       {mostrarModal && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4">
-          <div className="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl overflow-hidden flex flex-col max-h-[90vh] shadow-2xl animate-in slide-in-from-bottom duration-300">
+          <div className="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl overflow-hidden flex flex-col max-h-[90vh] shadow-2xl">
             <div className="p-4 bg-gray-50 border-b flex justify-between items-center shrink-0">
               <h3 className="text-xs font-black uppercase tracking-wider text-gray-900">Procesar Pago</h3>
               <button onClick={() => setMostrarModal(false)} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
