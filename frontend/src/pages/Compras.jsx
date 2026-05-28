@@ -106,10 +106,15 @@ export default function Compras() {
     const idUsuario = localStorage.getItem('id_usuario') || 1; 
 
     try {
-      // 🛠️ CORRECCIÓN: Ajustamos el campo exactamente a 'total_compra' como lo pide tu Backend
+      // 🛠️ CORRECCIÓN: Enviamos tanto 'id' como 'id_producto' asegurando compatibilidad absoluta con tu backend
       const comprasPayload = {
         id_usuario: Number(idUsuario),
-        total_compra: totalCompra
+        total_compra: totalCompra,
+        carrito: carrito.map(item => ({
+          id: Number(item.id),
+          id_producto: Number(item.id),
+          cantidad: Number(item.cantidad)
+        }))
       };
 
       const response = await fetch('https://nuevo-98vm.onrender.com/api/compras', {
@@ -118,16 +123,14 @@ export default function Compras() {
         body: JSON.stringify(comprasPayload)
       });
 
+      const data = await response.json();
+
       if (response.ok) {
-        // 🛠️ COMO EL BACKEND DE COMPRAS NO TIENE LA ACTUALIZACIÓN AUTOMÁTICA DE STOCK,
-        // Mandamos una actualización limpia para que el inventario aumente de verdad.
-        alert("¡Compra guardada! Sincronizando el nuevo inventario con la base de datos...");
-        
+        alert("📦 ¡Excelente! " + (data.message || "Compra registrada con éxito."));
         setCarrito([]); 
-        await cargarProductos();
-        alert("📊 Inventario actualizado con éxito en MySQL.");
+        await cargarProductos(); // Refresca las tarjetas con el nuevo stock real de MySQL
       } else {
-        alert("Error al registrar la compra en el servidor. Verifica las columnas.");
+        alert("Error en el servidor: " + (data.error || "Verifica las columnas."));
       }
     } catch (error) {
       console.error("Error en la transacción:", error);
@@ -188,7 +191,6 @@ export default function Compras() {
                     onClick={() => agregarAlCarrito(prod)}
                     className="bg-white border border-gray-100 rounded-xl p-3 hover:border-indigo-300 hover:shadow-md transition-all flex flex-col items-center text-center relative active:scale-95 shadow-sm"
                   >
-                    {/* 🛠️ CORRECCIÓN: Renderizado idéntico y seguro al de ventas para evitar imágenes caídas */}
                     <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gray-50 rounded-full flex items-center justify-center mb-2 shrink-0 border border-gray-100 relative overflow-hidden">
                       {urlDeLaFoto ? (
                         <img 
@@ -251,7 +253,6 @@ export default function Compras() {
                 </div>
                 
                 <div className="flex items-center justify-between pt-1 border-t border-gray-50">
-                  {/* Controladores de cantidad adaptados */}
                   <div className="flex items-center bg-gray-50 rounded-lg border border-gray-200 p-0.5">
                     <button type="button" onClick={() => cambiarCantidad(item.id, -1)} className="p-1 text-gray-600 rounded-l-lg"><Minus size={12} /></button>
                     <input
@@ -264,7 +265,6 @@ export default function Compras() {
                     <button type="button" onClick={() => cambiarCantidad(item.id, 1)} className="p-1 text-gray-600 rounded-r-lg"><Plus size={12} /></button>
                   </div>
                   
-                  {/* Entrada de costo unitario */}
                   <div className="flex items-center gap-1">
                     <span className="text-gray-400 font-bold text-xs">$</span>
                     <input 
