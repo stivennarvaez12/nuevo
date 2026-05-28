@@ -68,6 +68,29 @@ export default function Compras() {
     }
   }, [vistaActiva]);
 
+  // Formateador visual para la tabla de historial (evita el formato ISO crudo con 'T' y 'Z')
+  const formatearFechaTabla = (fechaRaw) => {
+    if (!fechaRaw) return "Sin fecha";
+    
+    if (fechaRaw.includes('T')) {
+      const [fechaParte, horaParte] = fechaRaw.split('T');
+      const [año, mes, dia] = fechaParte.split('-');
+      const hora = horaParte.substring(0, 5);
+      return `${dia}/${mes}/${año} • ${hora}`;
+    }
+    
+    const partes = fechaRaw.split(" ");
+    if (partes.length >= 1) {
+      const subPartesFecha = partes[0].split("-");
+      if (subPartesFecha.length === 3) {
+        const [año, mes, dia] = subPartesFecha;
+        const hora = partes[1] ? partes[1].substring(0, 5) : '';
+        return `${dia}/${mes}/${año} ${hora ? '• ' + hora : ''}`;
+      }
+    }
+    return fechaRaw;
+  };
+
   // Filtrar productos del catálogo de entrada
   const productosFiltrados = productos.filter(p => 
     (p.nombre || "").toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -427,7 +450,11 @@ export default function Compras() {
                         return (
                           <tr key={currentId} className={`transition-colors ${esSeleccionado ? 'bg-amber-50/50 hover:bg-amber-50' : 'hover:bg-gray-50/80'}`}>
                             <td className="p-3.5 font-black text-gray-950 whitespace-nowrap"><Receipt size={14} className="text-amber-500 inline mr-1" /> Compra #{currentId}</td>
-                            <td className="p-3.5 text-gray-500 font-medium whitespace-nowrap">{c.fecha_compra || c.fecha || 'Sin fecha'}</td>
+                            
+                            <td className="p-3.5 text-gray-500 font-medium whitespace-nowrap">
+                              {formatearFechaTabla(c.fecha_compra || c.fecha)}
+                            </td>
+                            
                             <td className="p-3.5 font-bold text-gray-600">👤 ID #{c.id_usuario || '1'}</td>
                             <td className="p-3.5 font-black text-right text-gray-950">${Number(c.total || c.total_compra || 0).toLocaleString('es-CO')}</td>
                             <td className="p-3.5 text-center">
