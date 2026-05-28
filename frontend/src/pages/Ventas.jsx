@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   ShoppingCart, Plus, Minus, Trash2, 
-  Search, Wine, Loader2, X, Calendar, History, Receipt
+  Search, Wine, Loader2, X, Calendar, History, Receipt, Eye, Printer
 } from 'lucide-react';
 import { toast } from 'react-hot-toast'; // 🔥 REGLA DE ORO: Notificaciones nativas
 
@@ -18,13 +18,19 @@ export default function Ventas() {
   const [pagaCon, setPagaCon] = useState('');
   const [vueltas, setVueltas] = useState(0);
 
-  // --- NUEVOS ESTADOS DEL HISTORIAL Y CALENDARIOS ---
+  // --- ESTADOS DEL HISTORIAL Y CALENDARIOS ---
   const [vistaActiva, setVistaActiva] = useState('caja'); // 'caja' o 'historial'
   const [historialVentas, setHistorialVentas] = useState([]);
   const [loadingHistorial, setLoadingHistorial] = useState(false);
   const [searchHistorial, setSearchHistorial] = useState("");
   const [fechaInicio, setFechaInicio] = useState("");
   const [fechaFin, setFechaFin] = useState("");
+
+  // --- ESTADOS PARA EL MODAL DE DETALLE DE FACTURA ---
+  const [selectedVenta, setSelectedVenta] = useState(null);
+  const [detalles, setDetalles] = useState([]);
+  const [loadingDetalle, setLoadingDetalle] = useState(false);
+  const [showModalDetalle, setShowModalDetalle] = useState(false);
 
   const fetchData = async () => {
     try {
@@ -55,7 +61,6 @@ export default function Ventas() {
       const res = await fetch('https://nuevo-98vm.onrender.com/api/ventas');
       if (res.ok) {
         const data = await res.json();
-        // El backend puede enviar un array directo o un objeto con la propiedad .data
         const arrayVentas = Array.isArray(data) ? data : (data.data || []);
         setHistorialVentas(arrayVentas);
       }
@@ -77,7 +82,79 @@ export default function Ventas() {
     }
   }, [vistaActiva]);
 
-  // Controlar si el precio viene de 'precio' o 'precio_venta'
+  // Función para abrir los detalles de una venta específica
+  const verDetalleFactura = async (venta) => {
+    setSelectedVenta(venta);
+    setShowModalDetalle(true);
+    setLoadingDetalle(true);
+    try {
+      const response = await fetch(`https://nuevo-98vm.onrender.com/api/ventas/${venta?.id}/detalle`);
+      if (response.ok) {
+        const data = await response.json();
+        setDetalles(Array.isArray(data) ? data : []);
+      } else {
+        toast.error("No se pudieron obtener los detalles de este recibo");
+      }
+    } catch (error) {
+      console.error("Error al obtener detalles:", error);
+      toast.error("Error de red al consultar el detalle");
+    } finally {
+      setLoadingDetalle(false);
+    }
+  };
+
+  // Impresión térmica directa
+  const handleImprimir = () => {
+    const ventanaImpresion = window.open('', '_blank');
+    if (!ventanaImpresion) {
+      return toast.error("Por favor, permite las ventanas emergentes para imprimir");
+    }
+    
+    const listaProductos = detalles.map(det => {
+      const nombreProd = (det?.nombre || 'Producto').substring(0, 18).padEnd(20, ' ');
+      const cantProd = (det?.cantidad || 0).toString().padStart(2, ' ');
+      const totalItem = ((det?.cantidad || 0) * (det?.precio || 0)).toLocaleString('es-CO');
+      return `${nombreProd} x${cantProd}  $${totalItem}`;
+    }).join('\n');
+
+    ventanaImpresion.document.write(`
+      <html>
+        <head>
+          <title>Recibo #${selectedVenta?.id}</title>
+          <style>
+            body { font-family: 'Courier New', Courier, monospace; width: 280px; font-size: 12px; margin: 0; padding: 10px; color: #000; }
+            .text-center { text-align: center; }
+            .text-right { text-align: right; }
+            .linea { border-top: 1px dashed #000; margin: 8px 0; }
+            .negrita { font-weight: bold; }
+          </style>
+        </head>
+        <body>
+          <div class="text-center negrita" style="font-size: 14px;">LICORES NICOLE</div>
+          <div class="text-center"> canilla de venta directa </div>
+          <div class="linea"></div>
+          <div><b>Factura:</b> #${selectedVenta?.id}</div>
+          <div><b>Fecha:</b> ${selectedVenta?.fecha || 'N/A'}</div>
+          <div><b>Cliente:</b> ${selectedVenta?.nombre_cliente || 'Cliente General'}</div>
+          <div><b>Medio:</b> ${selectedVenta?.metodo_pago || 'Efectivo'}</div>
+          <div class="linea"></div>
+          <div class="negrita">PRODUCTOS</div>
+          <pre style="margin: 0; font-family: inherit;">${listaProductos}</pre>
+          <div class="linea"></div>
+          <div class="text-right negrita" style="font-size: 13px;">
+            TOTAL NETO: $${Number(selectedVenta?.total || selectedVenta?.total_venta || 0).toLocaleString('es-CO')}
+          </div>
+          <div class="linea"></div>
+          <div class="text-center negrita">¡GRACIAS POR SU COMPRA!</div>
+          <script>
+            window.onload = function() { window.print(); window.close(); }
+          </script>
+        </body>
+      </html>
+    `);
+    ventanaImpresion.document.close();
+  };
+
   const getPrecio = (item) => Number(item.precio_venta || item.precio || 0);
 
   const total = carrito.reduce((sum, item) => sum + (getPrecio(item) * (Number(item.cantidad) || 0)), 0);
@@ -103,7 +180,7 @@ export default function Ventas() {
         item.id === producto.id ? { ...item, cantidad: Number(item.cantidad) + 1 } : item
       ));
     } else {
-      setCarrito([...carrito, { ...producto, fancyCantidad: 1, cantidad: 1 }]);
+      setCarrito([...carrito, { ...producto, cantidad: 1 }]);
     }
   };
 
@@ -156,9 +233,7 @@ export default function Ventas() {
     (p.categoria || "").toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // --- FILTRADO INTELIGENTE DEL HISTORIAL POR FECHAS Y TEXTO ---
   const ventasFiltradasPorCalendario = historialVentas.filter(v => {
-    // 1. Filtro por Buscador (Cliente o método de pago)
     const coincideTexto = 
       (v.nombre_cliente || "").toLowerCase().includes(searchHistorial.toLowerCase()) ||
       (v.metodo_pago || "").toLowerCase().includes(searchHistorial.toLowerCase()) ||
@@ -166,18 +241,14 @@ export default function Ventas() {
 
     if (!coincideTexto) return false;
 
-    // 2. Filtro por Rango de Calendarios
     if (v.fecha) {
-      const fechaVentaISO = v.fecha.split(" ")[0]; // Extrae 'YYYY-MM-DD' del string 'YYYY-MM-DD HH:MM:SS'
-      
+      const fechaVentaISO = v.fecha.split(" ")[0]; 
       if (fechaInicio && fechaVentaISO < fechaInicio) return false;
       if (fechaFin && fechaVentaISO > fechaFin) return false;
     }
-
     return true;
   });
 
-  // Sumatoria del dinero recolectado en las facturas filtradas
   const totalIngresosFiltrados = ventasFiltradasPorCalendario.reduce((sum, v) => {
     return sum + Number(v.total || v.total_venta || 0);
   }, 0);
@@ -194,7 +265,6 @@ export default function Ventas() {
 
   const ejecutarVentaFinal = async () => {
     const cargandoToast = toast.loading("Procesando venta...");
-    
     const id_usuario = localStorage.getItem('id_usuario') || 1;
     const carritoLimpio = carrito.map(item => ({
       id_producto: item.id,
@@ -254,7 +324,7 @@ export default function Ventas() {
 
   return (
     <div className="space-y-4 pb-24 lg:pb-5">
-      {/* SECTOR DE PESTAÑAS SENIOR EN PARTE SUPERIOR */}
+      {/* SECTOR DE PESTAÑAS */}
       <div className="flex bg-white p-1 rounded-2xl border border-gray-100 max-w-sm shadow-sm">
         <button 
           onClick={() => setVistaActiva('caja')}
@@ -274,7 +344,7 @@ export default function Ventas() {
         </button>
       </div>
 
-      {/* RENDERIZADO CONDICIONAL DE VISTAS */}
+      {/* VISTAS */}
       {vistaActiva === 'caja' ? (
         <div className="flex flex-col lg:flex-row gap-4 lg:h-[calc(100vh-10rem)]">
           {/* CATÁLOGO */}
@@ -417,21 +487,20 @@ export default function Ventas() {
           </div>
         </div>
       ) : (
-        /* VISTA DE HISTORIAL DE VENTAS CON ÍNDICES DE CALENDARIOS COMPLETOS */
-        <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden p-4 sm:p-5 space-y-4 animate-in fade-in duration-3xl">
+        /* VISTA DE HISTORIAL CON ÍNDICES COMPLETO */
+        <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden p-4 sm:p-5 space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-gray-50 p-4 rounded-2xl border border-gray-100">
             <div>
               <h2 className="text-base font-black text-gray-950 tracking-tight">Índice Avanzado de Ventas</h2>
               <p className="text-xs text-gray-400">Filtra facturas por clientes y rangos de fecha mediante calendarios.</p>
             </div>
-            {/* Indicador acumulado dinámico según el calendario */}
             <div className="bg-white px-4 py-2 rounded-xl border border-gray-200/60 text-right">
               <p className="text-[9px] font-black text-gray-400 uppercase tracking-wider">Recaudado en Período</p>
               <p className="text-lg font-black text-emerald-600">${totalIngresosFiltrados.toLocaleString('es-CO')}</p>
             </div>
           </div>
 
-          {/* BARRA DE FILTROS: TEXTO + CALENDARIO DE INICIO + CALENDARIO FIN */}
+          {/* BARRA DE FILTROS */}
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 bg-white p-1 rounded-xl">
             <div className="relative sm:col-span-2">
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
@@ -465,7 +534,7 @@ export default function Ventas() {
             </div>
           </div>
 
-          {/* BOTÓN LIMPIAR FILTROS (Si hay alguno activo) */}
+          {/* BOTÓN LIMPIAR FILTROS */}
           {(fechaInicio || fechaFin || searchHistorial) && (
             <div className="flex justify-end">
               <button 
@@ -478,7 +547,7 @@ export default function Ventas() {
             </div>
           )}
 
-          {/* TABLA DE REGISTROS FILTRADOS */}
+          {/* TABLA DE FACTURAS */}
           <div className="border border-gray-100 rounded-2xl overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
@@ -489,12 +558,13 @@ export default function Ventas() {
                     <th className="p-3.5">Cliente</th>
                     <th className="p-3.5">Método Pago</th>
                     <th className="p-3.5 text-right">Total Neto</th>
+                    <th className="p-3.5 text-center">Acción</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 text-xs">
                   {loadingHistorial ? (
                     <tr>
-                      <td colSpan="5" className="p-10 text-center text-gray-400 font-bold">
+                      <td colSpan="6" className="p-10 text-center text-gray-400 font-bold">
                         <div className="flex items-center justify-center gap-2">
                           <Loader2 className="animate-spin text-amber-500" size={18} />
                           <span>Descargando transacciones de La Cava...</span>
@@ -503,7 +573,7 @@ export default function Ventas() {
                     </tr>
                   ) : ventasFiltradasPorCalendario.length === 0 ? (
                     <tr>
-                      <td colSpan="5" className="p-12 text-center text-gray-400 italic font-medium">
+                      <td colSpan="6" className="p-12 text-center text-gray-400 italic font-medium">
                         Ninguna factura coincide con los filtros del calendario seleccionados.
                       </td>
                     </tr>
@@ -531,6 +601,15 @@ export default function Ventas() {
                         <td className="p-3.5 font-black text-right text-gray-950 text-sm">
                           ${Number(v.total || v.total_venta || 0).toLocaleString('es-CO')}
                         </td>
+                        <td className="p-3.5 text-center">
+                          <button
+                            type="button"
+                            onClick={() => verDetalleFactura(v)}
+                            className="bg-gray-100 hover:bg-gray-900 hover:text-white text-gray-700 p-2 rounded-xl transition-all active:scale-95 flex items-center gap-1 mx-auto font-bold text-[11px]"
+                          >
+                            <Eye size={13} /> Detalle
+                          </button>
+                        </td>
                       </tr>
                     ))
                   )}
@@ -541,7 +620,7 @@ export default function Ventas() {
         </div>
       )}
 
-      {/* MODAL COBRO EN EFECTIVO / MEDIOS DE PAGO */}
+      {/* MODAL COBRO CAJA ACTIVA */}
       {mostrarModal && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4">
           <div className="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl overflow-hidden flex flex-col max-h-[90vh] shadow-2xl">
@@ -592,6 +671,75 @@ export default function Ventas() {
             <div className="p-4 bg-gray-50 border-t grid grid-cols-2 gap-2 shrink-0">
               <button type="button" onClick={() => setMostrarModal(false)} className="bg-white border border-gray-200 p-3 rounded-xl font-black text-xs uppercase text-gray-400 tracking-wider hover:bg-gray-100">Atrás</button>
               <button type="button" onClick={ejecutarVentaFinal} disabled={metodoPago === 'Efectivo' && (Number(pagaCon) || 0) < total} className="bg-gray-950 text-white p-3 rounded-xl font-black text-xs uppercase tracking-widest disabled:bg-gray-100 disabled:text-gray-400 shadow-md">Despachar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DETALLE DE RECIBO (FUSIONADO) */}
+      {showModalDetalle && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-white w-full max-w-md rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[85vh]">
+            <div className="p-4 bg-gray-950 text-white flex justify-between items-center shrink-0">
+              <div className="flex items-center gap-2">
+                <Receipt size={16} className="text-amber-500" />
+                <span className="text-xs font-black uppercase tracking-wider">Factura Recibo #{selectedVenta?.id}</span>
+              </div>
+              <button type="button" onClick={() => setShowModalDetalle(false)} className="text-gray-400 hover:text-white transition-colors"><X size={18} /></button>
+            </div>
+
+            <div className="p-4 flex-1 overflow-y-auto space-y-4">
+              <div className="bg-gray-50 p-3 rounded-2xl border border-gray-100 text-xs space-y-1.5 font-semibold text-gray-600">
+                <p><span className="font-black text-gray-950">Fecha:</span> {selectedVenta?.fecha || 'N/A'}</p>
+                <p><span className="font-black text-gray-950">Cliente:</span> {selectedVenta?.nombre_cliente || 'Cliente General'}</p>
+                <p><span className="font-black text-gray-950">Método de Pago:</span> {selectedVenta?.metodo_pago || 'Efectivo'}</p>
+              </div>
+
+              <div className="space-y-2">
+                <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-wider">Artículos Despachados</h4>
+                
+                {loadingDetalle ? (
+                  <div className="flex items-center justify-center py-6 gap-2 text-gray-400 font-bold text-xs">
+                    <Loader2 className="animate-spin text-black" size={16} />
+                    <span>Abriendo archivo de la transacción...</span>
+                  </div>
+                ) : (
+                  <div className="border border-gray-100 rounded-xl overflow-hidden divide-y divide-gray-100">
+                    {detalles.map((det, index) => (
+                      <div key={index} className="p-3 flex items-center justify-between text-xs bg-white">
+                        <div>
+                          <p className="font-bold text-gray-900">{det?.nombre || 'Producto'}</p>
+                          <p className="text-[10px] font-medium text-gray-400">${Number(det?.precio || 0).toLocaleString('es-CO')} x {det?.cantidad || 0} Uds.</p>
+                        </div>
+                        <span className="font-black text-gray-950">${((det?.cantidad || 0) * (det?.precio || 0)).toLocaleString('es-CO')}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="flex justify-between items-center border-t border-dashed pt-3 border-gray-200">
+                <span className="text-xs font-black text-gray-400 uppercase tracking-wider">TOTAL TRANSACCIÓN</span>
+                <span className="text-xl font-black text-emerald-600">${Number(selectedVenta?.total || selectedVenta?.total_venta || 0).toLocaleString('es-CO')}</span>
+              </div>
+            </div>
+
+            <div className="p-4 bg-gray-50 border-t flex gap-2 shrink-0">
+              <button 
+                type="button" 
+                onClick={() => setShowModalDetalle(false)} 
+                className="flex-1 bg-white border border-gray-200 py-2.5 rounded-xl font-black text-xs uppercase text-gray-500 tracking-wider hover:bg-gray-100 transition-colors"
+              >
+                Cerrar
+              </button>
+              <button 
+                type="button" 
+                onClick={handleImprimir}
+                disabled={loadingDetalle}
+                className="flex-1 bg-gray-950 hover:bg-gray-800 text-white py-2.5 rounded-xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 shadow-md transition-colors disabled:bg-gray-200"
+              >
+                <Printer size={14} /> Imprimir Recibo
+              </button>
             </div>
           </div>
         </div>

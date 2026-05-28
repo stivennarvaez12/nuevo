@@ -11,9 +11,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import DashboardHome from './pages/DashboardHome';
 import Licores from './pages/Licores'; 
 import Ventas from './pages/Ventas';
-import HistorialVentas from './pages/HistorialVentas';
 import Compras from './pages/Compras'; 
-import HistorialCompras from './pages/HistorialCompras';
 import Gastos from './pages/Gastos';
 import Clientes from './pages/Clientes'; 
 import Usuarios from './pages/Usuarios';
@@ -21,7 +19,6 @@ import Roles from './pages/Roles';
 
 function App() {
   return (
-    // Envolvemos toda la aplicación con el CajaProvider para que el estado llegue a cualquier pantalla
     <CajaProvider>
       <BrowserRouter>
         <Routes>
@@ -31,14 +28,9 @@ function App() {
               <Route index element={<DashboardHome />} />
               <Route path="licores" element={<Licores />} />
               <Route path="ventas" element={<Ventas />} />
-              <Route path="historial" element={<HistorialVentas />} />
               <Route path="compras" element={<Compras />} />
-              <Route path="historial-compras" element={<HistorialCompras />} /> 
               <Route path="gastos" element={<Gastos />} />
-              
-              {/* 📦 NUEVA RUTA: Registramos la página de control de caja */}
               <Route path="caja" element={<Caja />} />
-              
               <Route path="clientes" element={<Clientes />} /> 
               <Route path="usuarios" element={<Usuarios />} />
               <Route path="roles" element={<Roles />} />

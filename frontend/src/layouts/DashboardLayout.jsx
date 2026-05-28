@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   Wine, Users, ShieldCheck, 
   UserCircle, ShoppingCart, TrendingDown, LayoutDashboard, LogOut,
-  Receipt, Package, PackageCheck, Menu, X, Archive
+  Package, Menu, X, Archive
 } from 'lucide-react';
 // 🔥 REGLA DE ORO: Importamos el contexto para saber el estado de la caja en tiempo real
 import { useCaja } from '../contexto/CajaContext';
@@ -27,11 +27,9 @@ export default function DashboardLayout() {
     { path: '/dashboard', icon: <LayoutDashboard size={20}/>, label: 'Inicio' },
     { path: '/dashboard/licores', icon: <Wine size={20}/>, label: 'Bebidas' },
     { path: '/dashboard/ventas', icon: <ShoppingCart size={20}/>, label: 'Ventas' },
-    { path: '/dashboard/historial', icon: <Receipt size={20}/>, label: 'Historial Ventas' },
     { path: '/dashboard/compras', icon: <Package size={20}/>, label: 'Compras' },
-    { path: '/dashboard/historial-compras', icon: <PackageCheck size={20}/>, label: 'Historial Compras' },
     { path: '/dashboard/gastos', icon: <TrendingDown size={20}/>, label: 'Gastos' },
-    // 📦 AÑADIMOS LA RUTA DE CAJA AQUÍ
+    // 📦 CONTROL DE CAJA CENTRALIZADO
     { path: '/dashboard/caja', icon: <Archive size={20}/>, label: 'Control Caja' },
     { path: '/dashboard/clientes', icon: <Users size={20}/>, label: 'Clientes' },
     { path: '/dashboard/usuarios', icon: <UserCircle size={20}/>, label: 'Usuarios' },
@@ -94,7 +92,7 @@ export default function DashboardLayout() {
           </div>
         </div>
         
-        {/* Cuerpo de navegación scrollable */}
+        {/* Cuerpo de navegación */}
         <nav className="flex-1 overflow-y-auto py-4 custom-scrollbar">
           <ul className="space-y-1 px-3">
             {menuItems.map((item) => {
@@ -119,7 +117,7 @@ export default function DashboardLayout() {
           </ul>
         </nav>
         
-        {/* Botón de Cerrar Sesión inferior */}
+        {/* Botón de Cerrar Sesión */}
         <div className="p-4 border-t border-gray-100 shrink-0">
           <button 
             onClick={handleLogout}
