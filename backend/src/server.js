@@ -167,30 +167,38 @@ app.delete('/api/productos/:id', (req, res) => {
 // 3. VENTAS Y DETALLES (REGLA DE ORO: INGRESOS 💰)
 // ==========================================
 app.post('/api/ventas', (req, res) => {
-    const { id_usuario, id_cliente, total_venta, carrito } = req.body;
-    const clienteId = id_cliente || 1;
-
-    db.query("INSERT INTO ventas (id_usuario, id_cliente, total_venta) VALUES (?, ?, ?)", 
-    [id_usuario, clienteId, total_venta], (err, result) => {
+    // BLINDAJE DE CAJA: Validar turno abierto
+    db.query("SELECT id_turno FROM control_caja WHERE estado = 'abierto' LIMIT 1", (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
-        const id_venta = result.insertId;
-        
-        const queries = carrito.map(item => {
-            return new Promise((resolve, reject) => {
-                db.query("INSERT INTO detalle_ventas (id_venta, id_producto, cantidad, precio_unitario) VALUES (?, ?, ?, ?)", 
-                [id_venta, item.id, item.cantidad, item.precio], (err) => {
-                    if (err) reject(err);
-                    db.query("UPDATE productos SET stock = stock - ? WHERE id_producto = ?", [item.cantidad, item.id], (err) => {
+        if (rows.length === 0) {
+            return res.status(403).json({ error: "Operación bloqueada. La caja se encuentra CERRADA. Debe realizar la apertura de caja para operar." });
+        }
+
+        const { id_usuario, id_cliente, total_venta, carrito } = req.body;
+        const clienteId = id_cliente || 1;
+
+        db.query("INSERT INTO ventas (id_usuario, id_cliente, total_venta) VALUES (?, ?, ?)", 
+        [id_usuario, clienteId, total_venta], (err, result) => {
+            if (err) return res.status(500).json({ error: err.message });
+            const id_venta = result.insertId;
+            
+            const queries = carrito.map(item => {
+                return new Promise((resolve, reject) => {
+                    db.query("INSERT INTO detalle_ventas (id_venta, id_producto, cantidad, precio_unitario) VALUES (?, ?, ?, ?)", 
+                    [id_venta, item.id, item.cantidad, item.precio], (err) => {
                         if (err) reject(err);
-                        resolve();
+                        db.query("UPDATE productos SET stock = stock - ? WHERE id_producto = ?", [item.cantidad, item.id], (err) => {
+                            if (err) reject(err);
+                            resolve();
+                        });
                     });
                 });
             });
-        });
 
-        Promise.all(queries)
-            .then(() => res.status(201).json({ message: "Venta registrada con éxito", id_venta }))
-            .catch(error => res.status(500).json({ error: error.message }));
+            Promise.all(queries)
+                .then(() => res.status(201).json({ message: "Venta registrada con éxito", id_venta }))
+                .catch(error => res.status(500).json({ error: error.message }));
+        });
     });
 });
 
@@ -238,11 +246,19 @@ app.get('/api/gastos', (req, res) => {
 });
 
 app.post('/api/gastos', (req, res) => {
-    const { descripcion, monto, categoria } = req.body;
-    db.query("INSERT INTO gastos (descripcion, monto, categoria) VALUES (?, ?, ?)", 
-    [descripcion, monto, categoria || 'General'], (err, result) => {
+    // BLINDAJE DE CAJA: Validar turno abierto
+    db.query("SELECT id_turno FROM control_caja WHERE estado = 'abierto' LIMIT 1", (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
-        res.status(201).json({ message: "Gasto registrado", id: result.insertId });
+        if (rows.length === 0) {
+            return res.status(403).json({ error: "Operación bloqueada. La caja se encuentra CERRADA. Debe realizar la apertura de caja para operar." });
+        }
+
+        const { descripcion, monto, categoria } = req.body;
+        db.query("INSERT INTO gastos (descripcion, monto, categoria) VALUES (?, ?, ?)", 
+        [descripcion, monto, categoria || 'General'], (err, result) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.status(201).json({ message: "Gasto registrado", id: result.insertId });
+        });
     });
 });
 
@@ -269,7 +285,6 @@ app.post('/api/clientes', (req, res) => {
 // 6. COMPRAS (REGLA DE ORO: EGRESOS E INVERSIÓN 📦)
 // ==========================================
 app.get('/api/compras', (req, res) => {
-    // FIX: Renombramos las columnas usando 'AS' para evitar que se junten los datos en la tabla
     const sql = `
         SELECT 
             id_compra AS id, 
@@ -286,40 +301,47 @@ app.get('/api/compras', (req, res) => {
 });
 
 app.post('/api/compras', (req, res) => {
-    const { id_usuario, total_compra, carrito } = req.body;
-
-    const sqlCompra = "INSERT INTO compras (id_usuario, total_compra) VALUES (?, ?)";
-    db.query(sqlCompra, [id_usuario, total_compra], (err, result) => {
+    // BLINDAJE DE CAJA: Validar turno abierto
+    db.query("SELECT id_turno FROM control_caja WHERE estado = 'abierto' LIMIT 1", (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
-        
-        const id_compra = result.insertId;
-
-        if (!carrito || carrito.length === 0) {
-            return res.status(201).json({ message: "Compra registrada sin detalles", id_compra });
+        if (rows.length === 0) {
+            return res.status(403).json({ error: "Operación bloqueada. La caja se encuentra CERRADA. Debe realizar la apertura de caja para operar." });
         }
-        
-        // REPARADO: Inserta en detalle_compras usando 'precio_costo' y SUMA stock al inventario
-        const queries = carrito.map(item => {
-            return new Promise((resolve, reject) => {
-                const idProducto = item.id_producto || item.id;
-                const precioCosto = item.precio_costo || 0;
 
-                const sqlDetalle = "INSERT INTO detalle_compras (id_compra, id_producto, cantidad, precio_costo) VALUES (?, ?, ?, ?)";
-                db.query(sqlDetalle, [id_compra, idProducto, item.cantidad, precioCosto], (err) => {
-                    if (err) return reject(err);
-                    
-                    const sqlStock = "UPDATE productos SET stock = stock + ? WHERE id_producto = ?";
-                    db.query(sqlStock, [item.cantidad, idProducto], (err) => {
-                        if (err) reject(err);
-                        else resolve();
+        const { id_usuario, total_compra, carrito } = req.body;
+
+        const sqlCompra = "INSERT INTO compras (id_usuario, total_compra) VALUES (?, ?)";
+        db.query(sqlCompra, [id_usuario, total_compra], (err, result) => {
+            if (err) return res.status(500).json({ error: err.message });
+            
+            const id_compra = result.insertId;
+
+            if (!carrito || carrito.length === 0) {
+                return res.status(201).json({ message: "Compra registrada sin detalles", id_compra });
+            }
+            
+            const queries = carrito.map(item => {
+                return new Promise((resolve, reject) => {
+                    const idProducto = item.id_producto || item.id;
+                    const precioCosto = item.precio_costo || 0;
+
+                    const sqlDetalle = "INSERT INTO detalle_compras (id_compra, id_producto, cantidad, precio_costo) VALUES (?, ?, ?, ?)";
+                    db.query(sqlDetalle, [id_compra, idProducto, item.cantidad, precioCosto], (err) => {
+                        if (err) return reject(err);
+                        
+                        const sqlStock = "UPDATE productos SET stock = stock + ? WHERE id_producto = ?";
+                        db.query(sqlStock, [item.cantidad, idProducto], (err) => {
+                            if (err) reject(err);
+                            else resolve();
+                        });
                     });
                 });
             });
-        });
 
-        Promise.all(queries)
-            .then(() => res.status(201).json({ message: "Compra guardada y stock incrementado en base de datos 📦", id_compra }))
-            .catch(error => res.status(500).json({ error: error.message }));
+            Promise.all(queries)
+                .then(() => res.status(201).json({ message: "Compra guardada y stock incrementado en base de datos 📦", id_compra }))
+                .catch(error => res.status(500).json({ error: error.message }));
+        });
     });
 });
 
@@ -328,7 +350,6 @@ app.post('/api/compras', (req, res) => {
 // ==========================================
 app.get('/api/dashboard', async (req, res) => {
     try {
-        // Ejecutamos consultas simultáneas para traer los totales limpios de la base de datos
         const getVentas = new Promise((resolve) => db.query("SELECT SUM(total_venta) AS total FROM ventas", (err, data) => resolve(data[0]?.total || 0)));
         const getCompras = new Promise((resolve) => db.query("SELECT SUM(total_compra) AS total FROM compras", (err, data) => resolve(data[0]?.total || 0)));
         const getGastos = new Promise((resolve) => db.query("SELECT SUM(monto) AS total FROM gastos", (err, data) => resolve(data[0]?.total || 0)));
@@ -336,17 +357,10 @@ app.get('/api/dashboard', async (req, res) => {
 
         const [ventasTotales, comprasTotales, gastosTotales, licoresCatalogo] = await Promise.all([getVentas, getCompras, getGastos, getProductos]);
 
-        // APLICACIÓN ESTRICTA DE LA REGLA DE ORO MATHEMATICALLY
-        // Ingresos = Lo que entra por Ventas
         const ingresos = Number(ventasTotales);
-        
-        // Egresos = Lo que sale por Compras (Inversión stock) + Gastos operativos
         const egresos = Number(comprasTotales) + Number(gastosTotales);
-        
-        // Balance de Caja neto real
         const balanceNeto = ingresos - egresos;
 
-        // Enviamos la data unificada al Dashboard
         res.json({
             ingresos: ingresos,
             egresos: egresos,
@@ -361,7 +375,110 @@ app.get('/api/dashboard', async (req, res) => {
     }
 });
 
-// --- 8. LEVANTAMIENTO DEL SERVIDOR ---
+// ==========================================
+// 8. CONTROL Y ARQUEO DE CAJA (REGLA DE ORO EMPOSTADA 🔑)
+// ==========================================
+app.get('/api/caja/estado', (req, res) => {
+    db.query("SELECT * FROM control_caja WHERE estado = 'abierto' ORDER BY id_turno DESC LIMIT 1", (err, result) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (result.length === 0) {
+            return res.json({ estado: "cerrado", info: null });
+        }
+
+        const cajaActiva = result[0];
+        const fechaApertura = cajaActiva.fecha_apertura;
+
+        const qVentas = new Promise((resolve) => db.query("SELECT SUM(total_venta) AS total FROM ventas WHERE fecha >= ?", [fechaApertura], (err, d) => resolve(Number(d[0]?.total || 0))));
+        const qCompras = new Promise((resolve) => db.query("SELECT SUM(total_compra) AS total FROM compras WHERE fecha_compra >= ?", [fechaApertura], (err, d) => resolve(Number(d[0]?.total || 0))));
+        const qGastos = new Promise((resolve) => db.query("SELECT SUM(monto) AS total FROM gastos WHERE fecha >= ?", [fechaApertura], (err, d) => resolve(Number(d[0]?.total || 0))));
+
+        Promise.all([qVentas, qCompras, qGastos]).then(([ventas, compras, gastos]) => {
+            const base = Number(cajaActiva.monto_inicial);
+            const esperado = base + ventas - compras - gastos; // REGLA DE ORO EN TURNO
+
+            res.json({
+                estado: "abierto",
+                info: {
+                    id_turno: cajaActiva.id_turno,
+                    id_usuario: cajaActiva.id_usuario,
+                    fecha_apertura: fechaApertura,
+                    monto_inicial: base,
+                    monto_ventas: ventas,
+                    monto_compras: compras,
+                    monto_gastos: gastos,
+                    monto_final_esperado: esperado
+                }
+            });
+        });
+    });
+});
+
+app.post('/api/caja/abrir', (req, res) => {
+    const { id_usuario, monto_inicial } = req.body;
+
+    db.query("SELECT id_turno FROM control_caja WHERE estado = 'abierto'", (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (rows.length > 0) return res.status(400).json({ error: "Ya existe un turno de caja abierto actualmente." });
+
+        const sql = "INSERT INTO control_caja (id_usuario, monto_inicial, estado) VALUES (?, ?, 'abierto')";
+        db.query(sql, [id_usuario, monto_inicial || 0], (err, result) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.status(201).json({ message: "Caja abierta con éxito. ¡Buen turno de ventas! 💰", id_turno: result.insertId });
+        });
+    });
+});
+
+app.post('/api/caja/cerrar', (req, res) => {
+    const { id_turno, monto_final_real } = req.body;
+
+    db.query("SELECT * FROM control_caja WHERE id_turno = ?", [id_turno], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (rows.length === 0) return res.status(404).json({ error: "Turno no encontrado." });
+
+        const caja = rows[0];
+        const fechaApertura = caja.fecha_apertura;
+
+        const qVentas = new Promise((resolve) => db.query("SELECT SUM(total_venta) AS total FROM ventas WHERE fecha >= ?", [fechaApertura], (err, d) => resolve(Number(d[0]?.total || 0))));
+        const qCompras = new Promise((resolve) => db.query("SELECT SUM(total_compra) AS total FROM compras WHERE fecha_compra >= ?", [fechaApertura], (err, d) => resolve(Number(d[0]?.total || 0))));
+        const qGastos = new Promise((resolve) => db.query("SELECT SUM(monto) AS total FROM gastos WHERE fecha >= ?", [fechaApertura], (err, d) => resolve(Number(d[0]?.total || 0))));
+
+        Promise.all([qVentas, qCompras, qGastos]).then(([ventas, compras, gastos]) => {
+            const base = Number(caja.monto_inicial);
+            const real = Number(monto_final_real || 0);
+            
+            const esperado = base + ventas - compras - gastos; // REGLA DE ORO APLICADA
+            const diferencia = real - esperado;
+
+            const sqlCierre = `
+                UPDATE control_caja 
+                SET fecha_cierre = CURRENT_TIMESTAMP,
+                    monto_ventas = ?,
+                    monto_compras = ?,
+                    monto_gastos = ?,
+                    monto_final_esperado = ?,
+                    monto_final_real = ?,
+                    diferencia = ?,
+                    estado = 'cerrado'
+                WHERE id_turno = ?
+            `;
+
+            db.query(sqlCierre, [ventas, compras, gastos, esperado, real, diferencia, id_turno], (err) => {
+                if (err) return res.status(500).json({ error: err.message });
+                
+                res.json({
+                    message: "Caja cerrada y turno finalizado correctamente 🏁",
+                    resumen: {
+                        efectivoEsperado: esperado,
+                        efectivoRealContado: real,
+                        descuadre: diferencia
+                    }
+                });
+            });
+        });
+    });
+});
+
+// --- 9. LEVANTAMIENTO DEL SERVIDOR ---
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => {
     console.log(`🚀 Servidor corriendo en puerto ${PORT}`);
