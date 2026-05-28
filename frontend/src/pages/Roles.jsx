@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ShieldCheck, Shield, Plus, Loader2 } from 'lucide-react';
+import { toast } from 'react-hot-toast'; // 🔥 REGLA DE ORO
 
 const Roles = () => {
   const [roles, setRoles] = useState([]);
@@ -7,7 +8,7 @@ const Roles = () => {
   const [loading, setLoading] = useState(true);
   const [guardando, setGuardando] = useState(false);
 
-  // 1. Cargar los roles desde Render (URL corregida)
+  // 1. Cargar los roles desde Render
   const cargarRoles = async () => {
     try {
       setLoading(true);
@@ -19,6 +20,7 @@ const Roles = () => {
       }
     } catch (err) {
       console.error("Error al cargar roles:", err);
+      toast.error("Error al sincronizar roles del servidor"); // ✅ Manejo de error visual
     } finally {
       setLoading(false);
     }
@@ -31,7 +33,9 @@ const Roles = () => {
   // 2. Crear un nuevo Rol en la base de datos
   const manejarCrearRol = async (e) => {
     e.preventDefault();
-    if (!nuevoRol.trim()) return;
+    if (!nuevoRol.trim()) return toast.error("Ingresa un nombre para el rol"); // ✅ Validación visual
+
+    const cargandoToast = toast.loading("Creando nivel de acceso..."); // 🔥 Feedback de carga
 
     try {
       setGuardando(true);
@@ -41,16 +45,19 @@ const Roles = () => {
         body: JSON.stringify({ nombre_rol: nuevoRol })
       });
 
+      toast.dismiss(cargandoToast); // Ocultar carga
+
       if (res.ok) {
-        alert("¡Nuevo rol creado con éxito! 🛡️");
+        toast.success("¡Nuevo rol creado con éxito! 🛡️"); // ✅ Éxito
         setNuevoRol('');
         cargarRoles(); // Recargar la lista
       } else {
-        alert("Error al crear el rol. Intenta de nuevo.");
+        toast.error("Error al crear el rol. Intenta de nuevo."); // ✅ Error del servidor
       }
     } catch (error) {
+      toast.dismiss(cargandoToast);
       console.error("Error creando rol:", error);
-      alert("Error de conexión con el servidor.");
+      toast.error("Error de conexión con el servidor."); // ✅ Error de red
     } finally {
       setGuardando(false);
     }
@@ -67,7 +74,7 @@ const Roles = () => {
           
           {/* Encabezado */}
           <div className="p-4 sm:p-6 border-b bg-indigo-600 flex items-center gap-3">
-            <ShieldCheck className="text-white shrink-0" size={26} sm={28} />
+            <ShieldCheck className="text-white shrink-0" size={26} />
             <div>
               <h2 className="text-lg sm:text-xl font-black text-white tracking-tight">Roles y Permisos</h2>
               <p className="text-indigo-100 text-xs sm:text-sm">Niveles de acceso configurados para Licores Nicole</p>
@@ -132,7 +139,6 @@ const Roles = () => {
                 placeholder="Ej: Administrador, Cajero..." 
                 value={nuevoRol} 
                 onChange={e => setNuevoRol(e.target.value)} 
-                required 
               />
             </div>
             <button 

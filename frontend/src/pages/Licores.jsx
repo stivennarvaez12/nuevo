@@ -3,6 +3,7 @@ import {
   Wine, Plus, Search, Edit2, Trash2, 
   RefreshCcw, X, ImagePlus, Loader2 
 } from 'lucide-react';
+import { toast } from 'react-hot-toast'; // 🔥 Integración limpia de notificaciones
 
 export default function Licores() {
   const [licores, setLicores] = useState([]);
@@ -12,6 +13,7 @@ export default function Licores() {
   const [modoEdicion, setModoEdicion] = useState(false);
   const [idEditar, setIdEditar] = useState(null);
 
+  // Mantenemos la propiedad interna como 'precio' para que coincida con tus inputs
   const [nuevoLicor, setNuevoLicor] = useState({
     nombre: '', categoria: '', precio: '', stock: ''
   });
@@ -28,6 +30,7 @@ export default function Licores() {
       setLicores(data);
     } catch (error) {
       console.error("Error:", error);
+      toast.error("Error al sincronizar inventario");
     } finally {
       setLoading(false);
     }
@@ -55,7 +58,7 @@ export default function Licores() {
     setNuevoLicor({
       nombre: licor.nombre,
       categoria: licor.categoria,
-      precio: licor.precio,
+      precio: licor.precio_venta || licor.precio || '', // 🔥 Asegura capturar el valor correcto de la DB
       stock: licor.stock
     });
     setImagenPreview(licor.imagen ? `https://nuevo-98vm.onrender.com/uploads/${licor.imagen}` : null);
@@ -75,11 +78,15 @@ export default function Licores() {
   const guardarLicor = async (e) => {
     e.preventDefault();
     
+    const cargandoToast = toast.loading(modoEdicion ? "Actualizando producto en MySQL..." : "Guardando nuevo licor...");
     const formData = new FormData();
     formData.append('nombre', nuevoLicor.nombre);
     formData.append('categoria', nuevoLicor.categoria);
-    formData.append('precio', nuevoLicor.precio);
+    
+    // 🔥 EL ARREGLO MAESTRO: Enviamos 'precio_venta' que es la columna que el Backend y MySQL esperan
+    formData.append('precio_venta', nuevoLicor.precio); 
     formData.append('stock', nuevoLicor.stock);
+    
     if (imagenFile) {
       formData.append('imagen', imagenFile);
     }
@@ -92,16 +99,18 @@ export default function Licores() {
 
     try {
       const response = await fetch(url, { method: method, body: formData });
+      toast.dismiss(cargandoToast);
 
       if (response.ok) {
-        alert(modoEdicion ? "¡Licor actualizado con éxito! 🍾" : "¡Licor agregado con éxito! 🥃");
+        toast.success(modoEdicion ? "¡Licor actualizado con éxito! 🍾" : "¡Licor agregado con éxito! 🥃");
         setIsModalOpen(false); 
         fetchLicores(); 
       } else {
-        alert("Error al guardar el licor en la base de datos");
+        toast.error("Error al guardar el licor en la base de datos");
       }
     } catch (error) {
-      alert("Error al conectar con el servidor");
+      toast.dismiss(cargandoToast);
+      toast.error("Error al conectar con el servidor");
     }
   };
 
@@ -111,9 +120,12 @@ export default function Licores() {
         const res = await fetch(`https://nuevo-98vm.onrender.com/api/productos/${id}`, { method: 'DELETE' });
         if (res.ok) {
           setLicores(licores.filter(l => l.id !== id));
+          toast.success("Producto eliminado del sistema");
+        } else {
+          toast.error("No se pudo eliminar el producto");
         }
       } catch (err) {
-        alert("Error al eliminar");
+        toast.error("Error al conectar con el servidor");
       }
     }
   };
@@ -175,68 +187,74 @@ export default function Licores() {
           </div>
         ) : (
           <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
-            {licoresFiltrados.map((licor) => (
-              <div key={licor.id} className="bg-white rounded-2xl sm:rounded-3xl border border-gray-100 overflow-hidden shadow-sm hover:shadow-md transition-all group flex flex-col">
-                
-                {/* Visualizador de imagen adaptable */}
-                <div className="w-full aspect-square overflow-hidden bg-gray-50/70 flex items-center justify-center p-4 relative">
-                  {licor.imagen ? (
-                    <img 
-                      src={`https://nuevo-98vm.onrender.com/uploads/${licor.imagen}`} 
-                      alt={licor.nombre} 
-                      className="max-h-full max-w-full object-contain object-center transition-transform group-hover:scale-105"
-                      onError={(e) => { e.target.onerror = null; e.target.src = 'https://via.placeholder.com/150?text=Error+Imagen'; }}
-                    />
-                  ) : (
-                    <div className="flex flex-col items-center justify-center text-gray-300">
-                      <Wine size={44} className="mb-1" />
-                      <span className="text-[10px] font-bold uppercase tracking-wider">Sin foto</span>
-                    </div>
-                  )}
+            {licoresFiltrados.map((licor) => {
+              // Manejo seguro del precio tanto si viene como 'precio' o 'precio_venta' de la DB
+              const valPrecio = licor.precio_venta || licor.precio || 0;
+              return (
+                <div key={licor.id} className="bg-white rounded-2xl sm:rounded-3xl border border-gray-100 overflow-hidden shadow-sm hover:shadow-md transition-all group flex flex-col">
                   
-                  {/* Badge de Categoría flotante para optimizar espacio abajo */}
-                  <span className="absolute top-2 left-2 px-2 py-0.5 bg-gray-950 text-white rounded-md text-[9px] font-black uppercase tracking-wider">
-                    {licor.categoria || "Licor"}
-                  </span>
-                </div>
-
-                {/* Detalles de la tarjeta */}
-                <div className="p-4 flex-1 flex flex-col justify-between gap-3">
-                  <div className="space-y-1">
-                    <h3 className="font-bold text-gray-900 text-sm sm:text-base leading-tight line-clamp-2 min-h-[2.5rem]">{licor.nombre}</h3>
-                    <p className="font-black text-gray-950 text-xl sm:text-2xl">${Number(licor.precio).toLocaleString('es-CO')}</p>
+                  {/* Visualizador de imagen adaptable */}
+                  <div className="w-full aspect-square overflow-hidden bg-gray-50/70 flex items-center justify-center p-4 relative">
+                    {licor.imagen ? (
+                      <img 
+                        src={`https://nuevo-98vm.onrender.com/uploads/${licor.imagen}`} 
+                        alt={licor.nombre} 
+                        className="max-h-full max-w-full object-contain object-center transition-transform group-hover:scale-105"
+                        onError={(e) => { e.target.onerror = null; e.target.src = 'https://via.placeholder.com/150?text=Error+Imagen'; }}
+                      />
+                    ) : (
+                      <div className="flex flex-col items-center justify-center text-gray-300">
+                        <Wine size={44} className="mb-1" />
+                        <span className="text-[10px] font-bold uppercase tracking-wider">Sin foto</span>
+                      </div>
+                    )}
+                    
+                    {/* Badge de Categoría flotante */}
+                    <span className="absolute top-2 left-2 px-2 py-0.5 bg-gray-950 text-white rounded-md text-[9px] font-black uppercase tracking-wider">
+                      {licor.categoria || "Licor"}
+                    </span>
                   </div>
 
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2">
-                      <span className={`w-2 h-2 rounded-full shrink-0 ${licor.stock < 10 ? 'bg-red-500 animate-pulse' : 'bg-emerald-500'}`}></span>
-                      <span className={`font-bold text-xs ${licor.stock < 10 ? 'text-red-600' : 'text-gray-600'}`}>
-                        {licor.stock} und. <span className="font-medium text-gray-400">disponibles</span>
-                      </span>
+                  {/* Detalles de la tarjeta */}
+                  <div className="p-4 flex-1 flex flex-col justify-between gap-3">
+                    <div className="space-y-1">
+                      <h3 className="font-bold text-gray-900 text-sm sm:text-base leading-tight line-clamp-2 min-h-[2.5rem]">{licor.nombre}</h3>
+                      <p className="font-black text-gray-950 text-xl sm:text-2xl">${Number(valPrecio).toLocaleString('es-CO')}</p>
                     </div>
 
-                    {/* Botonera de acciones */}
-                    <div className="border-t border-gray-50 pt-2.5 flex justify-end gap-1">
-                      <button 
-                        onClick={() => abrirModalEditar(licor)} 
-                        className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-xl transition-colors"
-                        title="Editar Producto"
-                      >
-                        <Edit2 size={16}/>
-                      </button>
-                      <button 
-                        onClick={() => eliminarLicor(licor.id, licor.nombre)} 
-                        className="p-2 text-red-600 hover:bg-red-50 rounded-xl transition-colors"
-                        title="Eliminar Producto"
-                      >
-                        <Trash2 size={16}/>
-                      </button>
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2">
+                        <span className={`w-2 h-2 rounded-full shrink-0 ${licor.stock < 10 ? 'bg-red-500 animate-pulse' : 'bg-emerald-500'}`}></span>
+                        <span className={`font-bold text-xs ${licor.stock < 10 ? 'text-red-600' : 'text-gray-600'}`}>
+                          {licor.stock} und. <span className="font-medium text-gray-400">disponibles</span>
+                        </span>
+                      </div>
+
+                      {/* Botonera de acciones */}
+                      <div className="border-t border-gray-50 pt-2.5 flex justify-end gap-1">
+                        <button 
+                          type="button"
+                          onClick={() => abrirModalEditar(licor)} 
+                          className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-xl transition-colors"
+                          title="Editar Producto"
+                        >
+                          <Edit2 size={16}/>
+                        </button>
+                        <button 
+                          type="button"
+                          onClick={() => eliminarLicor(licor.id, licor.nombre)} 
+                          className="p-2 text-red-600 hover:bg-red-50 rounded-xl transition-colors"
+                          title="Eliminar Producto"
+                        >
+                          <Trash2 size={16}/>
+                        </button>
+                      </div>
                     </div>
+
                   </div>
-
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
@@ -251,12 +269,12 @@ export default function Licores() {
               <h2 className="text-base sm:text-lg font-black uppercase tracking-wider flex items-center gap-2">
                 <Wine size={20} className="text-amber-400" /> {modoEdicion ? 'Editar Licor' : 'Nuevo Licor'}
               </h2>
-              <button onClick={() => setIsModalOpen(false)} className="hover:bg-white/20 p-1.5 rounded-full transition-colors text-gray-400 hover:text-white">
+              <button type="button" onClick={() => setIsModalOpen(false)} className="hover:bg-white/20 p-1.5 rounded-full transition-colors text-gray-400 hover:text-white">
                 <X size={20} />
               </button>
             </div>
             
-            {/* Cuerpo del formulario deslizable en dispositivos móviles */}
+            {/* Cuerpo del formulario deslizable */}
             <form onSubmit={guardarLicor} className="p-4 sm:p-6 space-y-4 overflow-y-auto flex-1 pb-8 sm:pb-6">
               
               {/* Zona de carga de imagen */}

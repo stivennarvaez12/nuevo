@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ShoppingBag, Search, Plus, Minus, Trash2, CheckCircle, Package, Loader2, Wine } from 'lucide-react';
+import { toast } from 'react-hot-toast'; // Importamos toast para alertas premium
 
 export default function Compras() {
   const [productos, setProductos] = useState([]);
@@ -15,9 +16,12 @@ export default function Compras() {
       if (response.ok) {
         const data = await response.json();
         setProductos(Array.isArray(data) ? data : []);
+      } else {
+        toast.error("Error al cargar el catálogo de productos");
       }
     } catch (error) {
       console.error("Error al cargar productos:", error);
+      toast.error("Error de conexión con el servidor");
     } finally {
       setLoading(false);
     }
@@ -40,8 +44,10 @@ export default function Compras() {
       setCarrito(carrito.map(item => 
         item.id === producto.id ? { ...item, cantidad: Number(item.cantidad) + 1 } : item
       ));
+      toast.success(`+1 ${producto.nombre}`, { duration: 1500, icon: '📦' });
     } else {
       setCarrito([...carrito, { ...producto, cantidad: 1, precio_costo: '' }]);
+      toast.success(`${producto.nombre} agregado a la orden`, { duration: 1500 });
     }
   };
 
@@ -96,17 +102,19 @@ export default function Compras() {
 
   // Registrar la compra en el servidor
   const registrarCompra = async () => {
-    if (carrito.length === 0) return alert("El carrito de compras está vacío.");
+    if (carrito.length === 0) {
+      return toast.error("La orden de compra está vacía.");
+    }
     
     const sinPrecio = carrito.find(item => item.precio_costo === '' || Number(item.precio_costo) <= 0);
     if (sinPrecio) {
-      return alert(`Por favor ingresa un precio de costo válido para: ${sinPrecio.nombre}`);
+      return toast.error(`Ingresa un costo válido para: ${sinPrecio.nombre}`);
     }
 
     const idUsuario = localStorage.getItem('id_usuario') || 1; 
+    const toastId = toast.loading("Registrando ingreso de mercancía...");
 
     try {
-      // 🛠️ CORRECCIÓN: Enviamos tanto 'id' como 'id_producto' asegurando compatibilidad absoluta con tu backend
       const comprasPayload = {
         id_usuario: Number(idUsuario),
         total_compra: totalCompra,
@@ -126,50 +134,50 @@ export default function Compras() {
       const data = await response.json();
 
       if (response.ok) {
-        alert("📦 ¡Excelente! " + (data.message || "Compra registrada con éxito."));
+        toast.success(data.message || "Mercancía ingresada y stock actualizado", { id: toastId });
         setCarrito([]); 
-        await cargarProductos(); // Refresca las tarjetas con el nuevo stock real de MySQL
+        await cargarProductos(); 
       } else {
-        alert("Error en el servidor: " + (data.error || "Verifica las columnas."));
+        toast.error("Error: " + (data.error || "Verifica los datos."), { id: toastId });
       }
     } catch (error) {
       console.error("Error en la transacción:", error);
-      alert("Error de conexión con el servidor.");
+      toast.error("Error de conexión al registrar la compra", { id: toastId });
     }
   };
 
   return (
-    <div className="flex flex-col lg:flex-row gap-4 sm:gap-6 min-h-screen lg:h-[calc(100vh-6rem)] pb-28 lg:pb-0">
+    <div className="flex flex-col lg:flex-row gap-4 sm:gap-6 min-h-screen lg:h-[calc(100vh-6rem)] pb-28 lg:pb-0 animate-in fade-in slide-in-from-bottom-4 duration-500">
       
       {/* PANEL IZQUIERDO: CATÁLOGO DE PRODUCTOS */}
       <div className="flex-1 bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col h-[50vh] lg:h-full overflow-hidden">
         <div className="p-4 sm:p-5 border-b border-gray-100 bg-gray-50/50">
-          <h2 className="text-base sm:text-xl font-bold text-gray-800 flex items-center gap-2">
-            <Package className="text-indigo-500" size={20} />
+          <h2 className="text-base sm:text-xl font-black text-gray-950 flex items-center gap-2">
+            <Package className="text-amber-500" size={20} />
             Ingreso de Mercancía
           </h2>
-          <p className="text-xs sm:text-sm text-gray-500 mt-0.5">Selecciona los productos recibidos del proveedor.</p>
+          <p className="text-xs sm:text-sm text-gray-500 mt-0.5">Selecciona los licores recibidos del proveedor para reabastecer.</p>
           
-          <div className="mt-3 relative">
+          <div className="mt-4 relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
             <input 
               type="text" 
               placeholder="Buscar por nombre o categoría..." 
-              className="w-full pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-xs sm:text-sm shadow-sm font-bold"
+              className="w-full pl-9 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none transition-all text-xs sm:text-sm shadow-sm font-medium"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-3 sm:p-5 bg-gray-50/20">
+        <div className="flex-1 overflow-y-auto p-3 sm:p-5 bg-gray-50/30">
           {loading ? (
-            <div className="flex justify-center items-center h-full text-gray-400 flex-col gap-2 py-10">
-              <Loader2 className="animate-spin text-indigo-500" size={24} />
-              <span className="text-xs font-medium">Sincronizando licores...</span>
+            <div className="flex justify-center items-center h-full text-gray-400 flex-col gap-3 py-10">
+              <Loader2 className="animate-spin text-amber-500" size={28} />
+              <span className="text-xs font-medium tracking-wide">Sincronizando inventario...</span>
             </div>
           ) : productosFiltrados.length === 0 ? (
-            <div className="text-center text-gray-400 text-xs py-10">No se encontraron productos coincidentes.</div>
+            <div className="text-center text-gray-400 text-xs py-10 font-medium">No se encontraron productos coincidentes.</div>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2.5 sm:gap-4">
               {productosFiltrados.map((prod) => {
@@ -189,9 +197,9 @@ export default function Compras() {
                     key={prod.id} 
                     type="button"
                     onClick={() => agregarAlCarrito(prod)}
-                    className="bg-white border border-gray-100 rounded-xl p-3 hover:border-indigo-300 hover:shadow-md transition-all flex flex-col items-center text-center relative active:scale-95 shadow-sm"
+                    className="bg-white border border-gray-100 rounded-xl p-3 hover:border-amber-300 hover:shadow-md transition-all flex flex-col items-center text-center relative active:scale-95 shadow-sm group"
                   >
-                    <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gray-50 rounded-full flex items-center justify-center mb-2 shrink-0 border border-gray-100 relative overflow-hidden">
+                    <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gray-50 rounded-full flex items-center justify-center mb-2 shrink-0 border border-gray-100 relative overflow-hidden group-hover:scale-105 transition-transform">
                       {urlDeLaFoto ? (
                         <img 
                           src={urlDeLaFoto} 
@@ -212,9 +220,9 @@ export default function Compras() {
                       </div>
                     </div>
                     <h3 className="font-bold text-gray-800 text-xs leading-tight line-clamp-2 min-h-[2rem]">{prod.nombre}</h3>
-                    <span className="text-[10px] text-gray-400 mt-0.5 truncate w-full uppercase font-medium">{prod.categoria}</span>
-                    <div className="mt-2 bg-indigo-50 text-indigo-700 text-[10px] px-1.5 py-0.5 rounded font-black w-full">
-                      Stock: {prod.stock}
+                    <span className="text-[9px] text-gray-400 mt-0.5 truncate w-full uppercase font-black tracking-wider">{prod.categoria}</span>
+                    <div className="mt-2 bg-gray-100 text-gray-600 border border-gray-200/50 text-[10px] px-2 py-0.5 rounded-md font-black w-full">
+                      Stock actual: {prod.stock}
                     </div>
                   </button>
                 );
@@ -226,53 +234,54 @@ export default function Compras() {
 
       {/* PANEL DERECHO: DETALLE DE LA COMPRA */}
       <div className="w-full lg:w-96 bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col h-[40vh] lg:h-full overflow-hidden shrink-0">
-        <div className="p-4 border-b border-gray-100 bg-indigo-900 text-white flex items-center gap-2">
-          <ShoppingBag size={18} className="text-amber-400" />
-          <h2 className="text-sm font-black uppercase tracking-wider">Orden de Compra</h2>
+        <div className="p-4 border-b border-gray-900 bg-gray-950 text-white flex items-center gap-2">
+          <ShoppingBag size={18} className="text-amber-500" />
+          <h2 className="text-sm font-black uppercase tracking-widest text-gray-50">Orden de Compra</h2>
         </div>
 
         <div className="flex-1 overflow-y-auto p-3 bg-gray-50/50 space-y-2">
           {carrito.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center text-gray-400 gap-2 py-10">
-              <ShoppingBag size={32} className="opacity-20" />
-              <p className="text-xs font-bold">No hay productos en la orden</p>
+            <div className="h-full flex flex-col items-center justify-center text-gray-400 gap-3 py-10">
+              <ShoppingBag size={36} className="opacity-20 text-gray-600" />
+              <p className="text-xs font-bold tracking-wide">La orden está vacía</p>
             </div>
           ) : (
             carrito.map((item) => (
-              <div key={item.id} className="bg-white border border-gray-100 rounded-xl p-3 shadow-sm flex flex-col gap-2">
+              <div key={item.id} className="bg-white border border-gray-100 rounded-xl p-3 shadow-sm flex flex-col gap-2 hover:border-gray-200 transition-colors">
                 <div className="flex justify-between items-start gap-2">
                   <div className="min-w-0 flex-1">
-                    <h4 className="font-bold text-xs text-gray-800 truncate">{item.nombre}</h4>
-                    <p className="text-[10px] text-gray-500 mt-0.5 font-semibold">
-                      Stock: {item.stock} &rarr; <span className="text-indigo-600 font-black">Quedará en: {Number(item.stock) + (item.cantidad === '' ? 0 : Number(item.cantidad))}</span>
+                    <h4 className="font-bold text-xs text-gray-900 truncate">{item.nombre}</h4>
+                    <p className="text-[10px] text-gray-500 mt-1 font-medium bg-gray-50 inline-block px-1.5 py-0.5 rounded border border-gray-100">
+                      Stock: {item.stock} <span className="mx-1 text-gray-300">→</span> 
+                      <span className="text-emerald-600 font-black">Nuevo: {Number(item.stock) + (item.cantidad === '' ? 0 : Number(item.cantidad))}</span>
                     </p>
                   </div>
-                  <button type="button" onClick={() => eliminarDelCarrito(item.id)} className="text-red-400 hover:text-red-600 p-1 shrink-0">
-                    <Trash2 size={14} />
+                  <button type="button" onClick={() => eliminarDelCarrito(item.id)} className="text-gray-300 hover:text-red-500 p-1 shrink-0 transition-colors">
+                    <Trash2 size={16} />
                   </button>
                 </div>
                 
-                <div className="flex items-center justify-between pt-1 border-t border-gray-50">
+                <div className="flex items-center justify-between pt-2 mt-1 border-t border-gray-50">
                   <div className="flex items-center bg-gray-50 rounded-lg border border-gray-200 p-0.5">
-                    <button type="button" onClick={() => cambiarCantidad(item.id, -1)} className="p-1 text-gray-600 rounded-l-lg"><Minus size={12} /></button>
+                    <button type="button" onClick={() => cambiarCantidad(item.id, -1)} className="p-1 text-gray-500 hover:text-gray-900 rounded-l-lg transition-colors"><Minus size={14} /></button>
                     <input
                       type="number"
                       value={item.cantidad === '' ? '' : item.cantidad}
                       onChange={(e) => handleCantidadManual(item.id, e.target.value)}
                       onBlur={(e) => validarBlurCantidad(item.id, e.target.value)}
-                      className="w-7 text-center text-xs font-black text-black bg-transparent border-none outline-none p-0"
+                      className="w-8 text-center text-xs font-black text-gray-900 bg-transparent border-none outline-none p-0"
                     />
-                    <button type="button" onClick={() => cambiarCantidad(item.id, 1)} className="p-1 text-gray-600 rounded-r-lg"><Plus size={12} /></button>
+                    <button type="button" onClick={() => cambiarCantidad(item.id, 1)} className="p-1 text-gray-500 hover:text-gray-900 rounded-r-lg transition-colors"><Plus size={14} /></button>
                   </div>
                   
-                  <div className="flex items-center gap-1">
-                    <span className="text-gray-400 font-bold text-xs">$</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-gray-400 font-black text-xs">$</span>
                     <input 
                       type="number" 
                       placeholder="Costo U."
                       value={item.precio_costo === '' ? '' : item.precio_costo}
                       onChange={(e) => cambiarPrecioCosto(item.id, e.target.value)}
-                      className="w-20 sm:w-24 px-2 py-1 text-xs border border-gray-200 bg-gray-50 rounded-lg focus:ring-1 focus:ring-indigo-500 outline-none text-right font-black text-black"
+                      className="w-24 px-2 py-1.5 text-xs border border-gray-200 bg-white rounded-lg focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none text-right font-black text-gray-900 shadow-sm"
                     />
                   </div>
                 </div>
@@ -283,18 +292,18 @@ export default function Compras() {
 
         {/* Bloque final de Totales */}
         <div className="p-4 border-t border-gray-100 bg-white">
-          <div className="flex justify-between items-center mb-3">
-            <span className="text-xs text-gray-400 font-bold uppercase">Total Inversión:</span>
-            <span className="text-xl font-black text-gray-900">${totalCompra.toLocaleString('es-CO')}</span>
+          <div className="flex justify-between items-center mb-4 px-1">
+            <span className="text-[11px] text-gray-400 font-black uppercase tracking-wider">Total Inversión:</span>
+            <span className="text-xl font-black text-emerald-600">${totalCompra.toLocaleString('es-CO')}</span>
           </div>
           <button 
             type="button"
             disabled={carrito.length === 0}
             onClick={registrarCompra}
-            className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all active:scale-95 shadow-md disabled:bg-gray-100 disabled:text-gray-400"
+            className="w-full py-3.5 bg-gray-950 hover:bg-black text-white rounded-xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all active:scale-95 shadow-md disabled:bg-gray-100 disabled:text-gray-400 disabled:shadow-none"
           >
-            <CheckCircle size={16} />
-            Registrar Compra y Stock
+            <CheckCircle size={16} className={carrito.length > 0 ? "text-amber-500" : ""} />
+            Registrar Ingreso
           </button>
         </div>
       </div>

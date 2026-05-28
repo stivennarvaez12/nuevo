@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { UserPlus, Users, Shield, Mail, Trash2, User, Key, ChevronDown } from 'lucide-react';
+import { toast } from 'react-hot-toast'; // 🔥 REGLA DE ORO
 
 const Usuarios = () => {
   const [usuarios, setUsuarios] = useState([]);
@@ -28,6 +29,7 @@ const Usuarios = () => {
       }
     } catch (error) {
       console.error("Error cargando datos:", error);
+      toast.error("Error al sincronizar datos del servidor"); // ✅ Manejo de error visual
     }
   };
 
@@ -37,7 +39,9 @@ const Usuarios = () => {
 
   const registrar = async (e) => {
     e.preventDefault();
-    if (!idRol) return alert("Selecciona un rol");
+    if (!idRol) return toast.error("Por favor, selecciona un rol"); // ✅
+
+    const cargandoToast = toast.loading("Registrando usuario..."); // 🔥 Feedback de carga
 
     try {
       // Endpoint de registro unificado
@@ -47,31 +51,41 @@ const Usuarios = () => {
         body: JSON.stringify({ nombre, email, password, id_rol: idRol })
       });
 
+      toast.dismiss(cargandoToast); // Ocultar carga
+
       if (res.ok) {
-        alert("¡Usuario registrado con éxito! 👤");
+        toast.success("¡Usuario registrado con éxito! 👤"); // ✅
         setNombre(''); setEmail(''); setPassword(''); setIdRol('');
         cargarDatos();
       } else {
-        alert("Error al registrar el usuario");
+        toast.error("Error al registrar el usuario"); // ✅
       }
     } catch (error) {
-      alert("Error en el servidor");
+      toast.dismiss(cargandoToast);
+      toast.error("Error de conexión con el servidor"); // ✅
     }
   };
 
   const eliminar = async (id) => {
+    // Mantenemos el confirm nativo por seguridad antes de borrar
     if (window.confirm("¿Seguro que deseas eliminar este usuario?")) {
+      const cargandoToast = toast.loading("Eliminando..."); // 🔥 Feedback de eliminación
+
       try {
         // Endpoint de eliminación unificado
         const res = await fetch(`https://nuevo-98vm.onrender.com/api/usuarios/${id}`, { method: 'DELETE' });
+        
+        toast.dismiss(cargandoToast);
+
         if (res.ok) {
-          alert("Usuario eliminado correctamente");
+          toast.success("Usuario eliminado correctamente"); // ✅
           cargarDatos();
         } else {
-          alert("Error al eliminar el usuario");
+          toast.error("Error al eliminar el usuario"); // ✅
         }
       } catch (error) {
-        alert("Error de conexión");
+        toast.dismiss(cargandoToast);
+        toast.error("Error de conexión"); // ✅
       }
     }
   };

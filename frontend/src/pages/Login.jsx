@@ -1,12 +1,58 @@
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Wine, Mail, Lock } from 'lucide-react';
+import { Wine, Mail, Lock, Loader2 } from 'lucide-react';
+import { toast } from 'react-hot-toast'; // 🔥 REGLA DE ORO
 
 export default function Login() {
   const navigate = useNavigate();
+  
+  // Estados para controlar los inputs
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-    navigate('/dashboard');
+    
+    // Validación visual básica
+    if (!email.trim() || !password.trim()) {
+      return toast.error("Por favor, completa todos los campos");
+    }
+
+    const cargandoToast = toast.loading("Verificando credenciales...");
+    setLoading(true);
+
+    try {
+      // Petición real al backend
+      const response = await fetch('https://nuevo-98vm.onrender.com/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim(), password })
+      });
+
+      toast.dismiss(cargandoToast);
+
+      if (response.ok) {
+        const data = await response.json();
+        
+        // Guardamos el ID del usuario en el navegador para usarlo en otras pantallas (ej. Gastos)
+        if (data.id_usuario || data.id) {
+          localStorage.setItem('id_usuario', data.id_usuario || data.id);
+        }
+        
+        toast.success("¡Acceso concedido! Bienvenido 🍷");
+        navigate('/dashboard');
+      } else {
+        // Error de credenciales (ej. 401 Unauthorized)
+        toast.error("Correo o contraseña incorrectos");
+      }
+    } catch (error) {
+      toast.dismiss(cargandoToast);
+      console.error("Error en login:", error);
+      toast.error("Error de conexión con el servidor");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -36,7 +82,10 @@ export default function Login() {
               <input 
                 type="email" 
                 required
-                className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-gray-950 outline-none transition-all text-xs sm:text-sm font-medium"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={loading}
+                className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-gray-950 outline-none transition-all text-xs sm:text-sm font-medium disabled:opacity-50"
                 placeholder="admin@licoreria.com"
               />
             </div>
@@ -51,7 +100,10 @@ export default function Login() {
               <input 
                 type="password" 
                 required
-                className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-gray-950 outline-none transition-all text-xs sm:text-sm font-medium"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                disabled={loading}
+                className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-gray-950 outline-none transition-all text-xs sm:text-sm font-medium disabled:opacity-50"
                 placeholder="••••••••"
               />
             </div>
@@ -59,9 +111,17 @@ export default function Login() {
           
           <button 
             type="submit"
-            className="w-full bg-gray-950 text-white py-3.5 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-gray-800 transition-all shadow-lg shadow-gray-100 active:scale-95 mt-2"
+            disabled={loading}
+            className="w-full bg-gray-950 text-white py-3.5 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-gray-800 transition-all shadow-lg shadow-gray-100 active:scale-95 mt-2 flex items-center justify-center gap-2 disabled:bg-gray-700 disabled:scale-100"
           >
-            Ingresar al Dashboard
+            {loading ? (
+              <>
+                <Loader2 className="animate-spin" size={16} />
+                Verificando...
+              </>
+            ) : (
+              "Ingresar al Dashboard"
+            )}
           </button>
         </form>
 

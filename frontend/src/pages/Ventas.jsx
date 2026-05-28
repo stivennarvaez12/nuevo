@@ -3,6 +3,7 @@ import {
   ShoppingCart, Plus, Minus, Trash2, 
   Search, Wine, Loader2, X 
 } from 'lucide-react';
+import { toast } from 'react-hot-toast'; // 🔥 REGLA DE ORO: Notificaciones nativas
 
 export default function Ventas() {
   const [productos, setProductos] = useState([]);
@@ -33,6 +34,7 @@ export default function Ventas() {
       }
     } catch (error) {
       console.error("Error al cargar datos del sistema:", error);
+      toast.error("Error al conectar con la base de datos"); // ✅ Toast
     } finally {
       setLoading(false);
     }
@@ -42,7 +44,10 @@ export default function Ventas() {
     fetchData();
   }, []);
 
-  const total = carrito.reduce((sum, item) => sum + (item.precio * (Number(item.cantidad) || 0)), 0);
+  // Controlar si el precio viene de 'precio' o 'precio_venta'
+  const getPrecio = (item) => Number(item.precio_venta || item.precio || 0);
+
+  const total = carrito.reduce((sum, item) => sum + (getPrecio(item) * (Number(item.cantidad) || 0)), 0);
 
   useEffect(() => {
     if (metodoPago !== 'Efectivo') {
@@ -58,7 +63,7 @@ export default function Ventas() {
     const itemExistente = carrito.find(item => item.id === producto.id);
     if (itemExistente) {
       if (itemExistente.cantidad >= producto.stock) {
-        alert(`¡No hay más stock disponible! Máximo: ${producto.stock} unidades.`);
+        toast.error(`Stock máximo: ${producto.stock} uds.`); // ✅ Toast
         return;
       }
       setCarrito(carrito.map(item => 
@@ -77,7 +82,7 @@ export default function Ventas() {
         const productoOriginal = productos.find(p => p.id === id);
         
         if (nuevaCantidad > productoOriginal.stock) {
-          alert(`Stock máximo alcanzado: ${productoOriginal.stock} unidades.`);
+          toast.error(`Solo quedan ${productoOriginal.stock} disponibles`); // ✅ Toast
           return item;
         }
         return nuevaCantidad > 0 ? { ...item, cantidad: nuevaCantidad } : item;
@@ -96,7 +101,7 @@ export default function Ventas() {
     if (isNaN(cantidadNum) || cantidadNum < 1) return;
 
     if (cantidadNum > productoOriginal.stock) {
-      alert(`¡Alerta de inventario! Solo quedan ${productoOriginal.stock} unidades.`);
+      toast.error(`Solo quedan ${productoOriginal.stock} disponibles`); // ✅ Toast
       setCarrito(carrito.map(item => item.id === id ? { ...item, cantidad: productoOriginal.stock } : item));
       return;
     }
@@ -119,20 +124,24 @@ export default function Ventas() {
   );
 
   const abrirConfirmacion = () => {
-    if (carrito.length === 0) return;
+    if (carrito.length === 0) {
+      return toast.error("El carrito está vacío"); // ✅ Toast
+    }
     setMetodoPago('Efectivo');
     setPagaCon('');
     setVueltas(0);
     setMostrarModal(true);
   };
 
-  const ejecutarVentaFinal = () => {
+  const ejecutarVentaFinal = async () => {
+    const cargandoToast = toast.loading("Procesando venta..."); // 🔥 Feedback dinámico
+    
     const id_usuario = localStorage.getItem('id_usuario') || 1;
     const carritoLimpio = carrito.map(item => ({
       id_producto: item.id,
       id: item.id,
       cantidad: item.cantidad === '' ? 1 : Number(item.cantidad),
-      precio: Number(item.precio)
+      precio: getPrecio(item)
     }));
 
     const payload = {
@@ -143,25 +152,39 @@ export default function Ventas() {
       metodo_pago: metodoPago
     };
 
-    const productosActualizados = productos.map(prod => {
-      const comprado = carritoLimpio.find(item => item.id_producto === prod.id);
-      if (comprado) {
-        return { ...prod, stock: prod.stock - comprado.cantidad };
+    try {
+      const response = await fetch('https://nuevo-98vm.onrender.com/api/ventas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      toast.dismiss(cargandoToast); // Ocultar el loading
+
+      if (response.ok) {
+        toast.success("¡Venta completada con éxito!"); // ✅ Toast Verde
+        
+        // Descontar stock visualmente sin recargar la pantalla completa
+        const productosActualizados = productos.map(prod => {
+          const comprado = carritoLimpio.find(item => item.id_producto === prod.id);
+          if (comprado) {
+            return { ...prod, stock: prod.stock - comprado.cantidad };
+          }
+          return prod;
+        });
+        setProductos(productosActualizados.filter(p => p.stock > 0));
+
+        setCarrito([]);
+        setIdClienteSeleccionado("1"); 
+        setMostrarModal(false);
+      } else {
+        toast.error("Error al registrar la venta");
       }
-      return prod;
-    });
-    setProductos(productosActualizados.filter(p => p.stock > 0));
-
-    setCarrito([]);
-    setIdClienteSeleccionado("1"); 
-    setMostrarModal(false);
-
-    fetch('https://nuevo-98vm.onrender.com/api/ventas', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    })
-    .catch(err => console.error("Error de red:", err));
+    } catch (err) {
+      toast.dismiss(cargandoToast);
+      console.error("Error de red:", err);
+      toast.error("Error de conexión");
+    }
   };
 
   return (
@@ -194,11 +217,9 @@ export default function Ventas() {
                 let urlDeLaFoto = '';
 
                 if (nombreImagen) {
-                  // Si por alguna razón ya viene con HTTP completa (ej. guardada a mano)
                   if (nombreImagen.startsWith('http://') || nombreImagen.startsWith('https://')) {
                     urlDeLaFoto = nombreImagen;
                   } else {
-                    {/* 🛠️ ARREGLADO AQUÍ: Añadimos obligatoriamente la subcarpeta '/uploads/' que pide Express */}
                     const archivoLimpio = nombreImagen.startsWith('/') ? nombreImagen.substring(1) : nombreImagen;
                     urlDeLaFoto = `https://nuevo-98vm.onrender.com/uploads/${archivoLimpio}`;
                   }
@@ -234,7 +255,7 @@ export default function Ventas() {
                     <div className="w-full text-center">
                       <p className="font-black text-gray-950 text-[11px] sm:text-xs line-clamp-2 min-h-[2rem] leading-tight tracking-tight text-center">{producto.nombre}</p>
                       <p className="text-[9px] font-bold text-gray-400 mt-0.5 uppercase tracking-wider text-center">Stock: {producto.stock} und</p>
-                      <p className="font-black text-xs sm:text-sm text-amber-600 mt-1 text-center">${Number(producto.precio).toLocaleString('es-CO')}</p>
+                      <p className="font-black text-xs sm:text-sm text-amber-600 mt-1 text-center">${getPrecio(producto).toLocaleString('es-CO')}</p>
                     </div>
                   </button>
                 );
@@ -272,7 +293,7 @@ export default function Ventas() {
               <div key={item.id} className="bg-white p-2.5 rounded-xl border border-gray-100 shadow-sm flex items-center justify-between gap-2">
                 <div className="min-w-0 flex-1">
                   <p className="font-bold text-xs text-gray-900 truncate">{item.nombre}</p>
-                  <p className="font-black text-xs text-amber-600">${Number(item.precio).toLocaleString('es-CO')}</p>
+                  <p className="font-black text-xs text-amber-600">${getPrecio(item).toLocaleString('es-CO')}</p>
                 </div>
                 <div className="flex items-center gap-1 bg-gray-50 rounded-lg p-0.5 border shrink-0">
                   <button type="button" onClick={() => modificarCantidad(item.id, -1)} className="p-1 text-gray-500 hover:bg-gray-200 rounded"><Minus size={12} /></button>

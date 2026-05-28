@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { TrendingDown, PlusCircle, DollarSign, FileText, Calendar, ReceiptText, Loader2 } from 'lucide-react';
+import { toast } from 'react-hot-toast'; // 🔥 REGLA DE ORO
 
 export default function Gastos() {
   const [gastos, setGastos] = useState([]);
@@ -7,7 +8,7 @@ export default function Gastos() {
   const [monto, setMonto] = useState('');
   const [loading, setLoading] = useState(true);
 
-  // Cargar historial de gastos desde el servidor - URL Estandarizada
+  // Cargar historial de gastos desde el servidor
   const fetchGastos = async () => {
     try {
       setLoading(true);
@@ -18,6 +19,7 @@ export default function Gastos() {
       }
     } catch (error) {
       console.error("Error al cargar gastos:", error);
+      toast.error("Error al sincronizar el historial de egresos"); // ✅ Toast
     } finally {
       setLoading(false);
     }
@@ -32,10 +34,11 @@ export default function Gastos() {
     e.preventDefault();
     
     if (!descripcion.trim() || !monto || Number(monto) <= 0) {
-      return alert("Por favor, ingresa una descripción válida y un monto mayor a 0.");
+      return toast.error("Ingresa una descripción y un monto mayor a 0"); // ✅ Toast
     }
 
     const idUsuario = localStorage.getItem('id_usuario') || 1; 
+    const cargandoToast = toast.loading("Registrando gasto..."); // 🔥 Feedback dinámico
 
     try {
       const response = await fetch('https://nuevo-98vm.onrender.com/api/gastos', {
@@ -48,17 +51,20 @@ export default function Gastos() {
         })
       });
 
+      toast.dismiss(cargandoToast); // Ocultar el loading
+
       if (response.ok) {
-        alert("¡Gasto registrado con éxito! 💸");
+        toast.success("¡Gasto registrado con éxito! 💸"); // ✅ Toast Verde
         setDescripcion(''); 
         setMonto('');
         fetchGastos(); 
       } else {
-        alert("Error al registrar el gasto en la base de datos.");
+        toast.error("Error al registrar el gasto en la base de datos");
       }
     } catch (error) {
+      toast.dismiss(cargandoToast);
       console.error("Error en la transacción:", error);
-      alert("Error de conexión con el servidor.");
+      toast.error("Error de conexión con el servidor");
     }
   };
 
@@ -68,7 +74,7 @@ export default function Gastos() {
   return (
     <div className="flex flex-col lg:flex-row gap-4 sm:gap-6 min-h-screen lg:h-[calc(100vh-6rem)] pb-28 lg:pb-0 animate-in fade-in slide-in-from-bottom-4 duration-500">
       
-      {/* PANEL IZQUIERDO: FORMULARIO DE GASTOS (Fijo arriba en móvil, lateral en PC) */}
+      {/* PANEL IZQUIERDO: FORMULARIO DE GASTOS */}
       <div className="w-full lg:w-1/3 bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col overflow-hidden shrink-0 h-fit">
         <div className="p-4 sm:p-5 border-b border-gray-100 bg-red-50">
           <h2 className="text-lg sm:text-xl font-bold text-red-900 flex items-center gap-2">
@@ -121,7 +127,7 @@ export default function Gastos() {
         </form>
       </div>
 
-      {/* PANEL DERECHO: HISTORIAL DE GASTOS (Ocupa el resto de pantalla en móvil con scroll propio) */}
+      {/* PANEL DERECHO: HISTORIAL DE GASTOS */}
       <div className="flex-1 bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col h-[50vh] lg:h-full overflow-hidden">
         <div className="p-4 sm:p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50">
           <h2 className="text-base sm:text-lg font-bold text-gray-800 flex items-center gap-2">

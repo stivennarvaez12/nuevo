@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Receipt, Calendar, Search, FileText, Eye, X, Package, User, Printer, Share2, Mail, Loader2 } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 
 export default function HistorialVentas() {
   const [ventas, setVentas] = useState([]);
@@ -9,7 +10,7 @@ export default function HistorialVentas() {
   // ESTADOS PARA EL DETALLE (MODAL)
   const [selectedVenta, setSelectedVenta] = useState(null);
   const [detalles, setDetalles] = useState([]);
-  const [loadingDetalle, setLoadingDetalle] = useState(false);
+  const [loadingDetalle, setLoadingDetalle] = useState(false); // 
   const [showModal, setShowModal] = useState(false);
 
   // 1. Cargar el historial general
@@ -20,9 +21,12 @@ export default function HistorialVentas() {
         if (response.ok) {
           const data = await response.json();
           setVentas(Array.isArray(data) ? data : []);
+        } else {
+          toast.error("Error al sincronizar las ventas con el servidor");
         }
       } catch (error) {
         console.error("Error al cargar el historial:", error);
+        toast.error("Error de conexión al cargar el historial");
       } finally {
         setLoading(false);
       }
@@ -40,15 +44,17 @@ export default function HistorialVentas() {
       if (response.ok) {
         const data = await response.json();
         setDetalles(Array.isArray(data) ? data : []);
+      } else {
+        toast.error("No se pudieron obtener los detalles de este recibo");
       }
     } catch (error) {
       console.error("Error al obtener detalles:", error);
+      toast.error("Error de red al consultar el detalle");
     } finally {
       setLoadingDetalle(false);
     }
   };
 
-  // Formatear fechas
   const formatearFecha = (fechaOriginal) => {
     if (!fechaOriginal) return "Fecha no disponible";
     const fecha = new Date(fechaOriginal);
@@ -61,15 +67,15 @@ export default function HistorialVentas() {
     });
   };
 
-  // --- FUNCIONES DE COMPARTIR Y EMISIÓN ---
-
-  // 1. IMPRIMIR RECIBO (Formato Ticket Térmico)
+  // --- FUNCIONES DE COMPARTIR ---
   const handleImprimir = () => {
     const ventanaImpresion = window.open('', '_blank');
-    if (!ventanaImpresion) return;
+    if (!ventanaImpresion) {
+      return toast.error("Por favor, permite las ventanas emergentes para imprimir");
+    }
     
     const listaProductos = detalles.map(det => {
-      const nombreProd = (det?.nombre || 'Producto').padEnd(20, ' ');
+      const nombreProd = (det?.nombre || 'Producto').substring(0, 18).padEnd(20, ' ');
       const cantProd = (det?.cantidad || 0).toString().padStart(2, ' ');
       const totalItem = ((det?.cantidad || 0) * (det?.precio || 0)).toLocaleString('es-CO');
       return `${nombreProd} x${cantProd}  $${totalItem}`;
@@ -80,11 +86,11 @@ export default function HistorialVentas() {
         <head>
           <title>Recibo #${selectedVenta?.id}</title>
           <style>
-            body { font-family: 'Courier New', Courier, monospace; width: 280px; font-size: 12px; margin: 0; padding: 10px; }
+            body { font-family: 'Courier New', Courier, monospace; width: 280px; font-size: 12px; margin: 0; padding: 10px; color: #000; }
             .text-center { text-align: center; }
             .text-right { text-align: right; }
             .linea { border-bottom: 1px dashed #000; margin: 8px 0; }
-            .total { font-size: 15px; font-weight: bold; }
+            .total { font-size: 14px; font-weight: bold; }
           </style>
         </head>
         <body>
@@ -110,9 +116,9 @@ export default function HistorialVentas() {
     ventanaImpresion.document.close();
     ventanaImpresion.print();
     ventanaImpresion.close();
+    toast.success("Orden de impresión enviada");
   };
 
-  // 2. COMPARTIR POR WHATSAPP
   const handleWhatsApp = () => {
     let mensaje = `*LICORES NICOLE* 🍾\n`;
     mensaje += `*Detalle de tu Compra* 🧾\n`;
@@ -133,9 +139,9 @@ export default function HistorialVentas() {
 
     const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(mensaje)}`;
     window.open(url, '_blank');
+    toast.success("Abriendo WhatsApp...");
   };
 
-  // 3. ENVIAR POR CORREO ELECTRÓNICO
   const handleCorreo = () => {
     const asunto = encodeURIComponent(`Recibo de Compra #${selectedVenta?.id?.toString().padStart(5, '0') || '00000'} - Licores Nicole`);
     
@@ -158,7 +164,6 @@ export default function HistorialVentas() {
     window.location.href = `mailto:?subject=${asunto}&body=${encodeURIComponent(cuerpo)}`;
   };
 
-  // Filtrar ventas evaluando de forma segura
   const ventasFiltradas = ventas.filter(v => {
     const idVenta = v?.id ? v.id.toString() : "";
     const nombreCliente = v?.cliente ? v.cliente.toLowerCase() : "";
@@ -173,7 +178,7 @@ export default function HistorialVentas() {
       {/* ENCABEZADO ADAPTABLE */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight">Historial de Ventas</h1>
+          <h1 className="text-2xl sm:text-3xl font-black text-gray-950 tracking-tight">Historial de Ventas</h1>
           <p className="text-xs sm:text-sm text-gray-500 mt-0.5">Revisa facturas, clientes asociados y recibos emitidos en caja.</p>
         </div>
 
@@ -183,7 +188,7 @@ export default function HistorialVentas() {
           <input 
             type="text" 
             placeholder="Buscar por # recibo o cliente..." 
-            className="w-full pl-9 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-600 outline-none font-medium text-xs sm:text-sm transition-all shadow-sm"
+            className="w-full pl-9 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-gray-950 outline-none font-medium text-xs sm:text-sm transition-all shadow-sm"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -193,13 +198,13 @@ export default function HistorialVentas() {
       {/* CONTENEDOR PRINCIPAL */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         <div className="p-4 sm:p-5 border-b border-gray-100 bg-gray-50/70 flex items-center gap-2.5">
-          <Receipt className="text-indigo-600" size={18} sm={20} />
-          <h2 className="font-bold text-sm sm:text-lg text-gray-800">Registro de Facturación</h2>
+          <Receipt className="text-gray-950 w-5 h-5 sm:w-6 sm:h-6" />
+          <h2 className="font-bold text-sm sm:text-lg text-gray-900">Registro de Facturación</h2>
         </div>
 
         {loading ? (
           <div className="p-12 text-center text-gray-400 font-medium flex flex-col items-center justify-center gap-2">
-            <Loader2 className="animate-spin text-indigo-500" size={24} />
+            <Loader2 className="animate-spin text-amber-500" size={24} />
             <span className="text-xs">Sincronizando caja registradora...</span>
           </div>
         ) : ventasFiltradas.length === 0 ? (
@@ -226,7 +231,7 @@ export default function HistorialVentas() {
                 <tbody>
                   {ventasFiltradas.map((venta) => (
                     <tr key={venta?.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
-                      <td className="p-4 font-black text-gray-800">
+                      <td className="p-4 font-black text-gray-900">
                         #{venta?.id?.toString().padStart(5, '0') || '00000'}
                       </td>
                       <td className="p-4 text-gray-600 flex items-center gap-2 text-sm font-medium">
@@ -247,7 +252,7 @@ export default function HistorialVentas() {
                       <td className="p-4 text-center">
                         <button 
                           onClick={() => verDetalle(venta)}
-                          className="p-2 hover:bg-indigo-50 text-indigo-600 rounded-full transition-colors"
+                          className="p-2 hover:bg-amber-50 text-amber-600 rounded-full transition-colors"
                           title="Ver detalle"
                         >
                           <Eye size={18} />
@@ -259,12 +264,12 @@ export default function HistorialVentas() {
               </table>
             </div>
 
-            {/* VISTA EN CELULAR: TARJETAS COMPACTAS SÚPER OPTIMIZADAS */}
+            {/* VISTA EN CELULAR: TARJETAS COMPACTAS */}
             <div className="block lg:hidden divide-y divide-gray-100 bg-gray-50/20">
               {ventasFiltradas.map((venta) => (
                 <div key={venta?.id} className="p-4 flex flex-col gap-3 bg-white">
                   <div className="flex justify-between items-center">
-                    <span className="font-black text-xs text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">
+                    <span className="font-black text-xs text-gray-950 bg-gray-100 px-2 py-0.5 rounded">
                       #{venta?.id?.toString().padStart(5, '0') || '00000'}
                     </span>
                     <span className="font-black text-emerald-600 text-base">
@@ -285,7 +290,7 @@ export default function HistorialVentas() {
                   <button
                     type="button"
                     onClick={() => verDetalle(venta)}
-                    className="w-full py-2 bg-gray-50 hover:bg-indigo-50 text-indigo-600 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 border border-gray-100 transition-colors"
+                    className="w-full py-2 bg-gray-50 hover:bg-amber-50 text-gray-950 hover:text-amber-600 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 border border-gray-100 transition-colors"
                   >
                     <Eye size={14} />
                     Ver Detalles y Recibo
@@ -328,9 +333,10 @@ export default function HistorialVentas() {
                 <span className="font-bold text-gray-700">Atendido por: {selectedVenta?.cajero || 'Sistema'}</span>
               </div>
 
+              {/* ✅ Variable corregida de loadingDetail a loadingDetalle */}
               {loadingDetalle ? (
                 <div className="py-10 text-center text-gray-400 text-xs font-bold flex flex-col items-center justify-center gap-2 animate-pulse">
-                  <Loader2 className="animate-spin text-indigo-500" size={20} />
+                  <Loader2 className="animate-spin text-amber-500" size={20} />
                   <span>Consultando canasta de licores...</span>
                 </div>
               ) : (
@@ -344,7 +350,7 @@ export default function HistorialVentas() {
                           </div>
                           <div className="min-w-0">
                             <p className="font-bold text-gray-800 text-xs sm:text-sm truncate">{det?.nombre || 'Producto'}</p>
-                            <p className="text-[10px] sm:text-xs text-gray-400 font-medium">{det?.container || det?.cantidad || 0} u. x ${Number(det?.precio || 0).toLocaleString()}</p>
+                            <p className="text-[10px] sm:text-xs text-gray-400 font-medium">{det?.cantidad || 0} u. x ${Number(det?.precio || 0).toLocaleString()}</p>
                           </div>
                         </div>
                         <p className="font-black text-gray-900 text-xs sm:text-sm shrink-0 pl-2">
@@ -362,14 +368,14 @@ export default function HistorialVentas() {
                     </span>
                   </div>
 
-                  {/* SECCIÓN DE ACCIONES DE COMPARTIR/IMPRIMIR ACCESIBLE */}
+                  {/* SECCIÓN DE ACCIONES */}
                   <div className="grid grid-cols-3 gap-2 pt-2">
                     <button
                       type="button"
                       onClick={handleImprimir}
                       className="flex flex-col items-center justify-center p-2.5 rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors text-gray-700 gap-1 active:scale-95"
                     >
-                      <Printer size={18} className="text-indigo-600" />
+                      <Printer size={18} className="text-gray-950" />
                       <span className="text-[10px] font-black uppercase">Imprimir</span>
                     </button>
                     <button

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Wine, Sparkles } from 'lucide-react';
-import LoginModal from '../components/LoginModal';
+import LoginModal from '../components/LoginModal'; // 🔥 El modal vuelve a casa
 
 export default function LandingPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -72,7 +72,7 @@ export default function LandingPage() {
             
             {/* Botón de Acción Principal */}
             <button 
-              onClick={() => setIsModalOpen(true)}
+              onClick={() => setIsModalOpen(true)} // ✅ Activamos el modal otra vez
               className="w-full sm:w-auto px-8 sm:px-12 py-3.5 sm:py-4 bg-amber-500 text-black text-base sm:text-lg lg:text-xl font-black rounded-xl sm:rounded-2xl hover:bg-amber-400 transition-all hover:scale-105 shadow-xl shadow-amber-500/30 active:scale-95 tracking-wide"
             >
               INICIAR SESIÓN
