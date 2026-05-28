@@ -16,7 +16,6 @@ export default function Gastos() {
   const fetchGastos = async () => {
     try {
       setLoading(true);
-      // 🔥 Corrección: Usamos API_URL y quitamos el "/api" que probablemente sobraba
       const response = await fetch(`${API_URL}/api/gastos`);
       
       if (!response.ok) throw new Error("Error en la respuesta del servidor");
@@ -43,7 +42,6 @@ export default function Gastos() {
       return toast.error("Ingresa una descripción y un monto mayor a 0");
     }
 
-    // 🔥 Corrección: Forzamos a que sea un Número (INT) para que MySQL no lo rechace
     const idUsuario = Number(localStorage.getItem('id_usuario')) || 1; 
     const cargandoToast = toast.loading("Registrando gasto...");
 
@@ -54,7 +52,8 @@ export default function Gastos() {
         body: JSON.stringify({
           id_usuario: idUsuario,
           descripcion: descripcion.trim(),
-          monto: Number(monto)
+          monto: Number(monto),
+          categoria: "General" // 🔥 SOLUCIÓN: Satisface la exigencia de la columna 'categoria' en el Backend
         })
       });
 
@@ -64,7 +63,7 @@ export default function Gastos() {
         toast.success("¡Gasto registrado con éxito! 💸");
         setDescripcion(''); 
         setMonto('');
-        fetchGastos(); // Recargamos la lista
+        fetchGastos(); // Recargamos la lista automáticamente
       } else {
         const errorData = await response.json().catch(() => null);
         console.error("Detalle del servidor:", errorData);
