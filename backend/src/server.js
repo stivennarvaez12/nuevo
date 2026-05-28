@@ -194,7 +194,6 @@ app.post('/api/ventas', (req, res) => {
     });
 });
 
-// CORRECCIÓN: Ajustada columna real 'v.fecha' de la DB
 app.get('/api/ventas', (req, res) => {
     const sql = `
         SELECT 
@@ -267,9 +266,8 @@ app.post('/api/clientes', (req, res) => {
 });
 
 // ==========================================
-// 6. COMPRAS
+// 6. COMPRAS (MODIFICADO Y REPARADO 📦)
 // ==========================================
-// CORRECCIÓN: Ajustadas columnas reales 'total_compra' y 'fecha_compra' de la DB
 app.get('/api/compras', (req, res) => {
     const sql = `
         SELECT 
@@ -287,13 +285,35 @@ app.get('/api/compras', (req, res) => {
     });
 });
 
-// CORRECCIÓN: Ajustada columna real 'total_compra' para el registro
+// SENIOR FIX: Recibe el carrito, guarda la compra general, y le SUMA (+) stock a los productos ingresados
 app.post('/api/compras', (req, res) => {
-    const { id_usuario, total_compra } = req.body;
-    const sql = "INSERT INTO compras (id_usuario, total_compra) VALUES (?, ?)";
-    db.query(sql, [id_usuario, total_compra], (err, result) => {
+    const { id_usuario, total_compra, carrito } = req.body;
+
+    const sqlCompra = "INSERT INTO compras (id_usuario, total_compra) VALUES (?, ?)";
+    db.query(sqlCompra, [id_usuario, total_compra], (err, result) => {
         if (err) return res.status(500).json({ error: err.message });
-        res.status(201).json({ message: "Compra registrada", id_compra: result.insertId });
+        
+        const id_compra = result.insertId;
+
+        // Si por alguna razón mandan una compra sin productos en el carrito, cerramos limpio
+        if (!carrito || carrito.length === 0) {
+            return res.status(201).json({ message: "Compra registrada sin detalles", id_compra });
+        }
+        
+        // Ejecutamos las consultas para actualizar el inventario sumando las nuevas cantidades
+        const queries = carrito.map(item => {
+            return new Promise((resolve, reject) => {
+                const sqlStock = "UPDATE productos SET stock = stock + ? WHERE id_producto = ?";
+                db.query(sqlStock, [item.cantidad, item.id_producto || item.id], (err) => {
+                    if (err) reject(err);
+                    else resolve();
+                });
+            });
+        });
+
+        Promise.all(queries)
+            .then(() => res.status(201).json({ message: "Compra registrada y stock actualizado con éxito en MySQL 📦", id_compra }))
+            .catch(error => res.status(500).json({ error: error.message }));
     });
 });
 
