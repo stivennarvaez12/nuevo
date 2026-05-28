@@ -2,6 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { DollarSign, Package, Users, AlertTriangle, TrendingUp, Award, Loader2 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
+// --- CONFIGURACIÓN DE LA URL (Consistente con Bodega y Gastos) ---
+const RAW_URL = import.meta.env.VITE_API_URL || 'https://nuevo-98vm.onrender.com';
+const API_URL = RAW_URL.replace(/\/$/, ""); // Eliminamos el slash final si existe
+
 export default function DashboardHome() {
   const [statsData, setStatsData] = useState({
     totalIngresos: 0,
@@ -16,7 +20,10 @@ export default function DashboardHome() {
   const fetchStats = async () => {
     try {
       setLoading(true);
-      const response = await fetch('https://nuevo-98vm.onrender.com/api/dashboard');
+      
+      {/* 🔥 SOLUCIÓN: Cambiado a '${API_URL}/dashboard' removiendo el '/api' que causaba el error 404 */}
+      const response = await fetch(`${API_URL}/dashboard`);
+      
       if (response.ok) {
         const data = await response.json();
         setStatsData({
@@ -80,12 +87,7 @@ export default function DashboardHome() {
   return (
     <div className="space-y-5 p-1 sm:p-0 animate-in fade-in slide-in-from-bottom-4 duration-500">
       
-      {/* 👑 ENCABEZADO DE ALTA GAMA 
-          Otras opciones llamativas si deseas cambiarlo luego:
-          - "El Epicentro Operativo"
-          - "Bóveda de Control"
-          - "La Reserva Analítica"
-      */}
+      {/* Encabezado */}
       <div>
         <h1 className="text-2xl font-black text-gray-950 tracking-tight bg-gradient-to-r from-gray-950 to-amber-700 bg-clip-text text-transparent">
           La Cava Central
@@ -95,7 +97,7 @@ export default function DashboardHome() {
         </p>
       </div>
 
-      {/* REJILLA DE DATOS RÁPIDOS */}
+      {/* Rejilla de datos */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {stats.map((stat, index) => (
           <div key={index} className="bg-white p-3.5 rounded-2xl border border-gray-100 flex items-center gap-3 shadow-sm hover:shadow-md transition-shadow">
@@ -110,10 +112,10 @@ export default function DashboardHome() {
         ))}
       </div>
 
-      {/* BLOQUE MEDIO: SECCIONES TOP */}
+      {/* Bloque Medio */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         
-        {/* TOP PRODUCTOS */}
+        {/* Top Productos */}
         <div className="bg-white p-4 sm:p-5 rounded-2xl border border-gray-100 shadow-sm space-y-4">
           <div className="flex items-center gap-2 pb-2.5 border-b border-gray-100">
             <TrendingUp size={18} className="text-gray-950" />
@@ -155,7 +157,7 @@ export default function DashboardHome() {
           </div>
         </div>
 
-        {/* TOP CLIENTES PREMIUM */}
+        {/* Top Clientes */}
         <div className="bg-white p-4 sm:p-5 rounded-2xl border border-gray-100 shadow-sm space-y-4">
           <div className="flex items-center gap-2 pb-2.5 border-b border-gray-100">
             <Award className="text-amber-500" size={18} />
@@ -187,7 +189,7 @@ export default function DashboardHome() {
 
       </div>
 
-      {/* SECCIÓN DE ALERTAS DE STOCK CRÍTICO */}
+      {/* Alertas de Stock */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         <div className="p-4 bg-gray-50 border-b border-gray-100 flex items-center gap-2">
           <AlertTriangle className="text-red-500 shrink-0" size={18} />
