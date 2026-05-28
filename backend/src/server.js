@@ -164,7 +164,7 @@ app.delete('/api/productos/:id', (req, res) => {
 });
 
 // ==========================================
-// 3. VENTAS Y DETALLES
+// 3. VENTAS Y DETALLES (REGLA DE ORO: INGRESOS 💰)
 // ==========================================
 app.post('/api/ventas', (req, res) => {
     const { id_usuario, id_cliente, total_venta, carrito } = req.body;
@@ -228,7 +228,7 @@ app.get('/api/ventas/:id/detalle', (req, res) => {
 });
 
 // ==========================================
-// 4. GASTOS
+// 4. GASTOS (REGLA DE ORO: EGRESOS 📉)
 // ==========================================
 app.get('/api/gastos', (req, res) => {
     db.query("SELECT * FROM gastos ORDER BY fecha DESC", (err, data) => {
@@ -266,16 +266,16 @@ app.post('/api/clientes', (req, res) => {
 });
 
 // ==========================================
-// 6. COMPRAS (MODIFICADO Y REPARADO 📦)
+// 6. COMPRAS (REGLA DE ORO: EGRESOS E INVERSIÓN 📦)
 // ==========================================
 app.get('/api/compras', (req, res) => {
+    // FIX: Renombramos las columnas usando 'AS' para evitar que se junten los datos en la tabla
     const sql = `
         SELECT 
-            id_compra, 
+            id_compra AS id, 
             id_usuario, 
             total_compra AS total, 
-            total_compra, 
-            fecha_compra 
+            fecha_compra AS fecha 
         FROM compras 
         ORDER BY fecha_compra DESC
     `;
@@ -285,7 +285,6 @@ app.get('/api/compras', (req, res) => {
     });
 });
 
-// SENIOR FIX: Recibe el carrito, guarda la compra general, y le SUMA (+) stock a los productos ingresados
 app.post('/api/compras', (req, res) => {
     const { id_usuario, total_compra, carrito } = req.body;
 
@@ -295,29 +294,74 @@ app.post('/api/compras', (req, res) => {
         
         const id_compra = result.insertId;
 
-        // Si por alguna razón mandan una compra sin productos en el carrito, cerramos limpio
         if (!carrito || carrito.length === 0) {
             return res.status(201).json({ message: "Compra registrada sin detalles", id_compra });
         }
         
-        // Ejecutamos las consultas para actualizar el inventario sumando las nuevas cantidades
+        // REPARADO: Inserta en detalle_compras usando 'precio_costo' y SUMA stock al inventario
         const queries = carrito.map(item => {
             return new Promise((resolve, reject) => {
-                const sqlStock = "UPDATE productos SET stock = stock + ? WHERE id_producto = ?";
-                db.query(sqlStock, [item.cantidad, item.id_producto || item.id], (err) => {
-                    if (err) reject(err);
-                    else resolve();
+                const idProducto = item.id_producto || item.id;
+                const precioCosto = item.precio_costo || 0;
+
+                const sqlDetalle = "INSERT INTO detalle_compras (id_compra, id_producto, cantidad, precio_costo) VALUES (?, ?, ?, ?)";
+                db.query(sqlDetalle, [id_compra, idProducto, item.cantidad, precioCosto], (err) => {
+                    if (err) return reject(err);
+                    
+                    const sqlStock = "UPDATE productos SET stock = stock + ? WHERE id_producto = ?";
+                    db.query(sqlStock, [item.cantidad, idProducto], (err) => {
+                        if (err) reject(err);
+                        else resolve();
+                    });
                 });
             });
         });
 
         Promise.all(queries)
-            .then(() => res.status(201).json({ message: "Compra registrada y stock actualizado con éxito en MySQL 📦", id_compra }))
+            .then(() => res.status(201).json({ message: "Compra guardada y stock incrementado en base de datos 📦", id_compra }))
             .catch(error => res.status(500).json({ error: error.message }));
     });
 });
 
-// --- 4. LEVANTAMIENTO DEL SERVIDOR ---
+// ==========================================
+// 7. DASHBOARD (REGLA DE ORO INTEGRADA DE RAÍZ 📊)
+// ==========================================
+app.get('/api/dashboard', async (req, res) => {
+    try {
+        // Ejecutamos consultas simultáneas para traer los totales limpios de la base de datos
+        const getVentas = new Promise((resolve) => db.query("SELECT SUM(total_venta) AS total FROM ventas", (err, data) => resolve(data[0]?.total || 0)));
+        const getCompras = new Promise((resolve) => db.query("SELECT SUM(total_compra) AS total FROM compras", (err, data) => resolve(data[0]?.total || 0)));
+        const getGastos = new Promise((resolve) => db.query("SELECT SUM(monto) AS total FROM gastos", (err, data) => resolve(data[0]?.total || 0)));
+        const getProductos = new Promise((resolve) => db.query("SELECT COUNT(*) AS total FROM productos", (err, data) => resolve(data[0]?.total || 0)));
+
+        const [ventasTotales, comprasTotales, gastosTotales, licoresCatalogo] = await Promise.all([getVentas, getCompras, getGastos, getProductos]);
+
+        // APLICACIÓN ESTRICTA DE LA REGLA DE ORO MATHEMATICALLY
+        // Ingresos = Lo que entra por Ventas
+        const ingresos = Number(ventasTotales);
+        
+        // Egresos = Lo que sale por Compras (Inversión stock) + Gastos operativos
+        const egresos = Number(comprasTotales) + Number(gastosTotales);
+        
+        // Balance de Caja neto real
+        const balanceNeto = ingresos - egresos;
+
+        // Enviamos la data unificada al Dashboard
+        res.json({
+            ingresos: ingresos,
+            egresos: egresos,
+            balanceNeto: balanceNeto,
+            ventasTotales: ingresos,
+            comprasTotales: Number(comprasTotales),
+            gastosTotales: Number(gastosTotales),
+            licoresCatalogo: Number(licoresCatalogo)
+        });
+    } catch (error) {
+        res.status(500).json({ error: "Error calculando el balance financiero del negocio" });
+    }
+});
+
+// --- 8. LEVANTAMIENTO DEL SERVIDOR ---
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => {
     console.log(`🚀 Servidor corriendo en puerto ${PORT}`);
