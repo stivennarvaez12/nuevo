@@ -17,7 +17,7 @@ export default function Gastos() {
     try {
       setLoading(true);
       // 🔥 Corrección: Usamos API_URL y quitamos el "/api" que probablemente sobraba
-      const response = await fetch(`${API_URL}/gastos`);
+      const response = await fetch(`${API_URL}/api/gastos`);
       
       if (!response.ok) throw new Error("Error en la respuesta del servidor");
       
@@ -48,7 +48,7 @@ export default function Gastos() {
     const cargandoToast = toast.loading("Registrando gasto...");
 
     try {
-      const response = await fetch(`${API_URL}/gastos`, {
+      const response = await fetch(`${API_URL}/api/gastos`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
