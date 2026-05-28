@@ -1,12 +1,24 @@
 import React, { useState, useEffect } from 'react';
-import { ShoppingBag, Search, Plus, Minus, Trash2, CheckCircle, Package, Loader2, Wine } from 'lucide-react';
+import { 
+  ShoppingBag, Search, Plus, Minus, Trash2, 
+  CheckCircle, Package, Loader2, Wine, Calendar, History, Receipt 
+} from 'lucide-react';
 import { toast } from 'react-hot-toast'; // Importamos toast para alertas premium
 
 export default function Compras() {
+  // --- ESTADOS DE LA ORDEN DE INGRESO ACTIVA ---
   const [productos, setProductos] = useState([]);
   const [carrito, setCarrito] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
+
+  // --- NUEVOS ESTADOS DEL HISTORIAL Y CALENDARIOS DE AUDITORÍA ---
+  const [vistaActiva, setVistaActiva] = useState('ingreso'); // 'ingreso' o 'historial'
+  const [historialCompras, setHistorialCompras] = useState([]);
+  const [loadingHistorial, setLoadingHistorial] = useState(false);
+  const [searchHistorial, setSearchHistorial] = useState("");
+  const [fechaInicio, setFechaInicio] = useState("");
+  const [fechaFin, setFechaFin] = useState("");
 
   // Cargar productos de la base de datos
   const cargarProductos = async () => {
@@ -27,15 +39,65 @@ export default function Compras() {
     }
   };
 
+  // Cargar el historial de facturas de compras (proveedores)
+  const cargarHistorialCompras = async () => {
+    try {
+      setLoadingHistorial(true);
+      const res = await fetch('https://nuevo-98vm.onrender.com/api/compras');
+      if (res.ok) {
+        const data = await res.json();
+        // Controlamos si la respuesta viene directamente en un array o dentro de .data
+        const arrayCompras = Array.isArray(data) ? data : (data.data || []);
+        setHistorialCompras(arrayCompras);
+      }
+    } catch (error) {
+      console.error("Error al descargar historial de compras:", error);
+      toast.error("No se pudo descargar el registro de compras pasadas");
+    } finally {
+      setLoadingHistorial(false);
+    }
+  };
+
   useEffect(() => {
     cargarProductos();
   }, []);
 
-  // Filtrar productos
+  useEffect(() => {
+    if (vistaActiva === 'historial') {
+      cargarHistorialCompras();
+    }
+  }, [vistaActiva]);
+
+  // Filtrar productos del catálogo de entrada
   const productosFiltrados = productos.filter(p => 
     (p.nombre || "").toLowerCase().includes(searchTerm.toLowerCase()) || 
     (p.categoria || "").toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  // --- FILTRADO AVANZADO POR CALENDARIOS PARA FACTURAS DE COMPRAS ---
+  const comprasFiltradasPorCalendario = historialCompras.filter(c => {
+    // 1. Filtro por caja de texto (ID o Usuario)
+    const coincideTexto = 
+      String(c.id || "").includes(searchHistorial) || 
+      String(c.id_usuario || "").includes(searchHistorial);
+
+    if (!coincideTexto) return false;
+
+    // 2. Filtro por Rango de Calendario Nivel Senior
+    if (c.fecha) {
+      const fechaCompraISO = c.fecha.split(" ")[0]; // Limpia el string 'YYYY-MM-DD HH:MM:SS' a solo 'YYYY-MM-DD'
+      
+      if (fechaInicio && fechaCompraISO < fechaInicio) return false;
+      if (fechaFin && fechaCompraISO > fechaFin) return false;
+    }
+
+    return true;
+  });
+
+  // Suma totalizada de lo invertido en los proveedores dentro de los rangos seleccionados
+  const totalInversionFiltrada = comprasFiltradasPorCalendario.reduce((sum, c) => {
+    return sum + Number(c.total || c.total_compra || 0);
+  }, 0);
 
   // Agregar al carrito de compras
   const agregarAlCarrito = (producto) => {
@@ -146,168 +208,311 @@ export default function Compras() {
     }
   };
 
+  const limpiarFiltrosFecha = () => {
+    setFechaInicio("");
+    setFechaFin("");
+    setSearchHistorial("");
+  };
+
   return (
-    <div className="flex flex-col lg:flex-row gap-4 sm:gap-6 min-h-screen lg:h-[calc(100vh-6rem)] pb-28 lg:pb-0 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      
-      {/* PANEL IZQUIERDO: CATÁLOGO DE PRODUCTOS */}
-      <div className="flex-1 bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col h-[50vh] lg:h-full overflow-hidden">
-        <div className="p-4 sm:p-5 border-b border-gray-100 bg-gray-50/50">
-          <h2 className="text-base sm:text-xl font-black text-gray-950 flex items-center gap-2">
-            <Package className="text-amber-500" size={20} />
-            Ingreso de Mercancía
-          </h2>
-          <p className="text-xs sm:text-sm text-gray-500 mt-0.5">Selecciona los licores recibidos del proveedor para reabastecer.</p>
+    <div className="space-y-4 pb-24 lg:pb-5">
+      {/* SECTOR DE PESTAÑAS SUPERIOR */}
+      <div className="flex bg-white p-1 rounded-2xl border border-gray-100 max-w-sm shadow-sm">
+        <button 
+          type="button"
+          onClick={() => setVistaActiva('ingreso')}
+          className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${
+            vistaActiva === 'ingreso' ? 'bg-gray-950 text-white shadow-sm' : 'text-gray-400 hover:text-gray-900'
+          }`}
+        >
+          <Package size={14} /> Registrar Ingreso
+        </button>
+        <button 
+          type="button"
+          onClick={() => setVistaActiva('historial')}
+          className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${
+            vistaActiva === 'historial' ? 'bg-gray-950 text-white shadow-sm' : 'text-gray-400 hover:text-gray-900'
+          }`}
+        >
+          <History size={14} /> Historial Compras
+        </button>
+      </div>
+
+      {/* RENDERIZADO DE VISTAS */}
+      {vistaActiva === 'ingreso' ? (
+        <div className="flex flex-col lg:flex-row gap-4 sm:gap-6 lg:h-[calc(100vh-10rem)] animate-in fade-in duration-300">
           
-          <div className="mt-4 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-            <input 
-              type="text" 
-              placeholder="Buscar por nombre o categoría..." 
-              className="w-full pl-9 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none transition-all text-xs sm:text-sm shadow-sm font-medium"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-3 sm:p-5 bg-gray-50/30">
-          {loading ? (
-            <div className="flex justify-center items-center h-full text-gray-400 flex-col gap-3 py-10">
-              <Loader2 className="animate-spin text-amber-500" size={28} />
-              <span className="text-xs font-medium tracking-wide">Sincronizando inventario...</span>
+          {/* PANEL IZQUIERDO: CATÁLOGO DE PRODUCTOS */}
+          <div className="flex-1 bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col h-[50vh] lg:h-full overflow-hidden">
+            <div className="p-4 sm:p-5 border-b border-gray-100 bg-gray-50/50">
+              <h2 className="text-base sm:text-xl font-black text-gray-950 flex items-center gap-2">
+                <Package className="text-amber-500" size={20} />
+                Ingreso de Mercancía
+              </h2>
+              <p className="text-xs sm:text-sm text-gray-500 mt-0.5">Selecciona los licores recibidos del proveedor para reabastecer.</p>
+              
+              <div className="mt-4 relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                <input 
+                  type="text" 
+                  placeholder="Buscar por nombre o categoría..." 
+                  className="w-full pl-9 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none transition-all text-xs sm:text-sm shadow-sm font-medium"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
             </div>
-          ) : productosFiltrados.length === 0 ? (
-            <div className="text-center text-gray-400 text-xs py-10 font-medium">No se encontraron productos coincidentes.</div>
-          ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2.5 sm:gap-4">
-              {productosFiltrados.map((prod) => {
-                const nombreImagen = prod.imagen || '';
-                let urlDeLaFoto = '';
-                if (nombreImagen) {
-                  if (nombreImagen.startsWith('http://') || nombreImagen.startsWith('https://')) {
-                    urlDeLaFoto = nombreImagen;
-                  } else {
-                    const archivoLimpio = nombreImagen.startsWith('/') ? nombreImagen.substring(1) : nombreImagen;
-                    urlDeLaFoto = `https://nuevo-98vm.onrender.com/uploads/${archivoLimpio}`;
-                  }
-                }
 
-                return (
-                  <button 
-                    key={prod.id} 
-                    type="button"
-                    onClick={() => agregarAlCarrito(prod)}
-                    className="bg-white border border-gray-100 rounded-xl p-3 hover:border-amber-300 hover:shadow-md transition-all flex flex-col items-center text-center relative active:scale-95 shadow-sm group"
-                  >
-                    <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gray-50 rounded-full flex items-center justify-center mb-2 shrink-0 border border-gray-100 relative overflow-hidden group-hover:scale-105 transition-transform">
-                      {urlDeLaFoto ? (
-                        <img 
-                          src={urlDeLaFoto} 
-                          alt={prod.nombre} 
-                          className="w-full h-full object-cover" 
-                          onError={(e) => {
-                            e.target.style.display = 'none';
-                            const fallback = e.target.nextSibling;
-                            if (fallback) fallback.style.display = 'flex';
-                          }}
-                        />
-                      ) : null}
-                      <div 
-                        className="absolute inset-0 flex items-center justify-center bg-gray-50 text-gray-300"
-                        style={{ display: urlDeLaFoto ? 'none' : 'flex' }}
+            <div className="flex-1 overflow-y-auto p-3 sm:p-5 bg-gray-50/30">
+              {loading ? (
+                <div className="flex justify-center items-center h-full text-gray-400 flex-col gap-3 py-10">
+                  <Loader2 className="animate-spin text-amber-500" size={28} />
+                  <span className="text-xs font-medium tracking-wide">Sincronizando inventario...</span>
+                </div>
+              ) : productosFiltrados.length === 0 ? (
+                <div className="text-center text-gray-400 text-xs py-10 font-medium">No se encontraron productos coincidentes.</div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2.5 sm:gap-4">
+                  {productosFiltrados.map((prod) => {
+                    const nombreImagen = prod.imagen || '';
+                    let urlDeLaFoto = '';
+                    if (nombreImagen) {
+                      if (nombreImagen.startsWith('http://') || nombreImagen.startsWith('https://')) {
+                        urlDeLaFoto = nombreImagen;
+                      } else {
+                        const archivoLimpio = nombreImagen.startsWith('/') ? nombreImagen.substring(1) : nombreImagen;
+                        urlDeLaFoto = `https://nuevo-98vm.onrender.com/uploads/${archivoLimpio}`;
+                      }
+                    }
+
+                    return (
+                      <button 
+                        key={prod.id} 
+                        type="button"
+                        onClick={() => agregarAlCarrito(prod)}
+                        className="bg-white border border-gray-100 rounded-xl p-3 hover:border-amber-300 hover:shadow-md transition-all flex flex-col items-center text-center relative active:scale-95 shadow-sm group"
                       >
-                        <Wine size={16} />
+                        <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gray-50 rounded-full flex items-center justify-center mb-2 shrink-0 border border-gray-100 relative overflow-hidden group-hover:scale-105 transition-transform">
+                          {urlDeLaFoto ? (
+                            <img 
+                              src={urlDeLaFoto} 
+                              alt={prod.nombre} 
+                              className="w-full h-full object-cover" 
+                              onError={(e) => {
+                                e.target.style.display = 'none';
+                                const fallback = e.target.nextSibling;
+                                if (fallback) fallback.style.display = 'flex';
+                              }}
+                            />
+                          ) : null}
+                          <div 
+                            className="absolute inset-0 flex items-center justify-center bg-gray-50 text-gray-300"
+                            style={{ display: urlDeLaFoto ? 'none' : 'flex' }}
+                          >
+                            <Wine size={16} />
+                          </div>
+                        </div>
+                        <h3 className="font-bold text-gray-800 text-xs leading-tight line-clamp-2 min-h-[2rem]">{prod.nombre}</h3>
+                        <span className="text-[9px] text-gray-400 mt-0.5 truncate w-full uppercase font-black tracking-wider">{prod.categoria}</span>
+                        <div className="mt-2 bg-gray-100 text-gray-600 border border-gray-200/50 text-[10px] px-2 py-0.5 rounded-md font-black w-full">
+                          Stock actual: {prod.stock}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* PANEL DERECHO: DETALLE DE LA COMPRA */}
+          <div className="w-full lg:w-96 bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col h-[40vh] lg:h-full overflow-hidden shrink-0">
+            <div className="p-4 border-b border-gray-900 bg-gray-950 text-white flex items-center gap-2">
+              <ShoppingBag size={18} className="text-amber-500" />
+              <h2 className="text-sm font-black uppercase tracking-widest text-gray-50">Orden de Compra</h2>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-3 bg-gray-50/50 space-y-2">
+              {carrito.length === 0 ? (
+                <div className="h-full flex flex-col items-center justify-center text-gray-400 gap-3 py-10">
+                  <ShoppingBag size={36} className="opacity-20 text-gray-600" />
+                  <p className="text-xs font-bold tracking-wide">La orden está vacía</p>
+                </div>
+              ) : (
+                carrito.map((item) => (
+                  <div key={item.id} className="bg-white border border-gray-100 rounded-xl p-3 shadow-sm flex flex-col gap-2 hover:border-gray-200 transition-colors">
+                    <div className="flex justify-between items-start gap-2">
+                      <div className="min-w-0 flex-1">
+                        <h4 className="font-bold text-xs text-gray-900 truncate">{item.nombre}</h4>
+                        <p className="text-[10px] text-gray-500 mt-1 font-medium bg-gray-50 inline-block px-1.5 py-0.5 rounded border border-gray-100">
+                          Stock: {item.stock} <span className="mx-1 text-gray-300">→</span> 
+                          <span className="text-emerald-600 font-black">Nuevo: {Number(item.stock) + (item.cantidad === '' ? 0 : Number(item.cantidad))}</span>
+                        </p>
+                      </div>
+                      <button type="button" onClick={() => eliminarDelCarrito(item.id)} className="text-gray-300 hover:text-red-500 p-1 shrink-0 transition-colors">
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                    
+                    <div className="flex items-center justify-between pt-2 mt-1 border-t border-gray-50">
+                      <div className="flex items-center bg-gray-50 rounded-lg border border-gray-200 p-0.5">
+                        <button type="button" onClick={() => cambiarCantidad(item.id, -1)} className="p-1 text-gray-500 hover:text-gray-900 rounded-l-lg transition-colors"><Minus size={14} /></button>
+                        <input
+                          type="number"
+                          value={item.cantidad === '' ? '' : item.cantidad}
+                          onChange={(e) => handleCantidadManual(item.id, e.target.value)}
+                          onBlur={(e) => validarBlurCantidad(item.id, e.target.value)}
+                          className="w-8 text-center text-xs font-black text-gray-900 bg-transparent border-none outline-none p-0"
+                        />
+                        <button type="button" onClick={() => cambiarCantidad(item.id, 1)} className="p-1 text-gray-500 hover:text-gray-900 rounded-r-lg transition-colors"><Plus size={14} /></button>
+                      </div>
+                      
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-gray-400 font-black text-xs">$</span>
+                        <input 
+                          type="number" 
+                          placeholder="Costo U."
+                          value={item.precio_costo === '' ? '' : item.precio_costo}
+                          onChange={(e) => cambiarPrecioCosto(item.id, e.target.value)}
+                          className="w-24 px-2 py-1.5 text-xs border border-gray-200 bg-white rounded-lg focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none text-right font-black text-gray-900 shadow-sm"
+                        />
                       </div>
                     </div>
-                    <h3 className="font-bold text-gray-800 text-xs leading-tight line-clamp-2 min-h-[2rem]">{prod.nombre}</h3>
-                    <span className="text-[9px] text-gray-400 mt-0.5 truncate w-full uppercase font-black tracking-wider">{prod.categoria}</span>
-                    <div className="mt-2 bg-gray-100 text-gray-600 border border-gray-200/50 text-[10px] px-2 py-0.5 rounded-md font-black w-full">
-                      Stock actual: {prod.stock}
-                    </div>
-                  </button>
-                );
-              })}
+                  </div>
+                ))
+              )}
             </div>
-          )}
-        </div>
-      </div>
 
-      {/* PANEL DERECHO: DETALLE DE LA COMPRA */}
-      <div className="w-full lg:w-96 bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col h-[40vh] lg:h-full overflow-hidden shrink-0">
-        <div className="p-4 border-b border-gray-900 bg-gray-950 text-white flex items-center gap-2">
-          <ShoppingBag size={18} className="text-amber-500" />
-          <h2 className="text-sm font-black uppercase tracking-widest text-gray-50">Orden de Compra</h2>
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-3 bg-gray-50/50 space-y-2">
-          {carrito.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center text-gray-400 gap-3 py-10">
-              <ShoppingBag size={36} className="opacity-20 text-gray-600" />
-              <p className="text-xs font-bold tracking-wide">La orden está vacía</p>
-            </div>
-          ) : (
-            carrito.map((item) => (
-              <div key={item.id} className="bg-white border border-gray-100 rounded-xl p-3 shadow-sm flex flex-col gap-2 hover:border-gray-200 transition-colors">
-                <div className="flex justify-between items-start gap-2">
-                  <div className="min-w-0 flex-1">
-                    <h4 className="font-bold text-xs text-gray-900 truncate">{item.nombre}</h4>
-                    <p className="text-[10px] text-gray-500 mt-1 font-medium bg-gray-50 inline-block px-1.5 py-0.5 rounded border border-gray-100">
-                      Stock: {item.stock} <span className="mx-1 text-gray-300">→</span> 
-                      <span className="text-emerald-600 font-black">Nuevo: {Number(item.stock) + (item.cantidad === '' ? 0 : Number(item.cantidad))}</span>
-                    </p>
-                  </div>
-                  <button type="button" onClick={() => eliminarDelCarrito(item.id)} className="text-gray-300 hover:text-red-500 p-1 shrink-0 transition-colors">
-                    <Trash2 size={16} />
-                  </button>
-                </div>
-                
-                <div className="flex items-center justify-between pt-2 mt-1 border-t border-gray-50">
-                  <div className="flex items-center bg-gray-50 rounded-lg border border-gray-200 p-0.5">
-                    <button type="button" onClick={() => cambiarCantidad(item.id, -1)} className="p-1 text-gray-500 hover:text-gray-900 rounded-l-lg transition-colors"><Minus size={14} /></button>
-                    <input
-                      type="number"
-                      value={item.cantidad === '' ? '' : item.cantidad}
-                      onChange={(e) => handleCantidadManual(item.id, e.target.value)}
-                      onBlur={(e) => validarBlurCantidad(item.id, e.target.value)}
-                      className="w-8 text-center text-xs font-black text-gray-900 bg-transparent border-none outline-none p-0"
-                    />
-                    <button type="button" onClick={() => cambiarCantidad(item.id, 1)} className="p-1 text-gray-500 hover:text-gray-900 rounded-r-lg transition-colors"><Plus size={14} /></button>
-                  </div>
-                  
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-gray-400 font-black text-xs">$</span>
-                    <input 
-                      type="number" 
-                      placeholder="Costo U."
-                      value={item.precio_costo === '' ? '' : item.precio_costo}
-                      onChange={(e) => cambiarPrecioCosto(item.id, e.target.value)}
-                      className="w-24 px-2 py-1.5 text-xs border border-gray-200 bg-white rounded-lg focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none text-right font-black text-gray-900 shadow-sm"
-                    />
-                  </div>
-                </div>
+            <div className="p-4 border-t border-gray-100 bg-white">
+              <div className="flex justify-between items-center mb-4 px-1">
+                <span className="text-[11px] text-gray-400 font-black uppercase tracking-wider">Total Inversión:</span>
+                <span className="text-xl font-black text-emerald-600">${totalCompra.toLocaleString('es-CO')}</span>
               </div>
-            ))
-          )}
-        </div>
-
-        {/* Bloque final de Totales */}
-        <div className="p-4 border-t border-gray-100 bg-white">
-          <div className="flex justify-between items-center mb-4 px-1">
-            <span className="text-[11px] text-gray-400 font-black uppercase tracking-wider">Total Inversión:</span>
-            <span className="text-xl font-black text-emerald-600">${totalCompra.toLocaleString('es-CO')}</span>
+              <button 
+                type="button"
+                disabled={carrito.length === 0}
+                onClick={registrarCompra}
+                className="w-full py-3.5 bg-gray-950 hover:bg-black text-white rounded-xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all active:scale-95 shadow-md disabled:bg-gray-100 disabled:text-gray-400 disabled:shadow-none"
+              >
+                <CheckCircle size={16} className={carrito.length > 0 ? "text-amber-500" : ""} />
+                Registrar Ingreso
+              </button>
+            </div>
           </div>
-          <button 
-            type="button"
-            disabled={carrito.length === 0}
-            onClick={registrarCompra}
-            className="w-full py-3.5 bg-gray-950 hover:bg-black text-white rounded-xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all active:scale-95 shadow-md disabled:bg-gray-100 disabled:text-gray-400 disabled:shadow-none"
-          >
-            <CheckCircle size={16} className={carrito.length > 0 ? "text-amber-500" : ""} />
-            Registrar Ingreso
-          </button>
         </div>
-      </div>
+      ) : (
+        /* NUEVO HISTORIAL DE COMPRAS E INVERSIONES CON FILTROS DE CALENDARIO */
+        <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden p-4 sm:p-5 space-y-4 animate-in fade-in duration-3xl">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-gray-50 p-4 rounded-2xl border border-gray-100">
+            <div>
+              <h2 className="text-base font-black text-gray-950 tracking-tight">Índice de Compras y Abastecimiento</h2>
+              <p className="text-xs text-gray-400">Audita los egresos financieros por reabastecimiento usando el calendario.</p>
+            </div>
+            <div className="bg-white px-4 py-2 rounded-xl border border-gray-200/60 text-right">
+              <p className="text-[9px] font-black text-gray-400 uppercase tracking-wider">Inversión del Período</p>
+              <p className="text-lg font-black text-amber-600">${totalInversionFiltrada.toLocaleString('es-CO')}</p>
+            </div>
+          </div>
 
+          {/* CONTROLADORES: BUSCADOR + CALENDARIOS DE CONTROL */}
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 bg-white p-1 rounded-xl">
+            <div className="relative sm:col-span-2">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+              <input 
+                type="text" 
+                placeholder="Buscar por ID de compra o ID de usuario ejecutor..." 
+                value={searchHistorial}
+                onChange={(e) => setSearchHistorial(e.target.value)}
+                className="w-full pl-10 pr-3 py-2.5 text-xs font-bold bg-gray-50 border border-gray-200 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-black transition-all"
+              />
+            </div>
+
+            <div className="relative">
+              <Calendar className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={14} />
+              <input 
+                type="date" 
+                value={fechaInicio}
+                onChange={(e) => setFechaInicio(e.target.value)}
+                className="w-full pl-9 pr-2 py-2.5 text-xs font-black bg-gray-50 border border-gray-200 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-black cursor-pointer"
+              />
+            </div>
+
+            <div className="relative">
+              <Calendar className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={14} />
+              <input 
+                type="date" 
+                value={fechaFin}
+                onChange={(e) => setFechaFin(e.target.value)}
+                className="w-full pl-9 pr-2 py-2.5 text-xs font-black bg-gray-50 border border-gray-200 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-black cursor-pointer"
+              />
+            </div>
+          </div>
+
+          {/* LIMPIAR FILTROS RÁPIDOS */}
+          {(fechaInicio || fechaFin || searchHistorial) && (
+            <div className="flex justify-end">
+              <button 
+                type="button" 
+                onClick={limpiarFiltrosFecha}
+                className="text-[10px] bg-gray-100 hover:bg-gray-200 text-gray-600 font-black px-3 py-1.5 rounded-lg uppercase tracking-wider transition-colors"
+              >
+                Limpiar Filtros ×
+              </button>
+            </div>
+          )}
+
+          {/* TABLA DE REGISTROS DEL SERVIDOR */}
+          <div className="border border-gray-100 rounded-2xl overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-gray-950 text-white text-[10px] font-black uppercase tracking-wider">
+                    <th className="p-3.5">ID Compra</th>
+                    <th className="p-3.5">Fecha y Hora</th>
+                    <th className="p-3.5">Operador ID</th>
+                    <th className="p-3.5 text-right">Inversión Suministro</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 text-xs">
+                  {loadingHistorial ? (
+                    <tr>
+                      <td colSpan="4" className="p-10 text-center text-gray-400 font-bold">
+                        <div className="flex items-center justify-center gap-2">
+                          <Loader2 className="animate-spin text-amber-500" size={18} />
+                          <span>Analizando egresos de mercancía...</span>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : comprasFiltradasPorCalendario.length === 0 ? (
+                    <tr>
+                      <td colSpan="4" className="p-12 text-center text-gray-400 italic font-medium">
+                        Ningún registro de compra coincide con el rango seleccionado en el calendario.
+                      </td>
+                    </tr>
+                  ) : (
+                    comprasFiltradasPorCalendario.map((c) => (
+                      <tr key={c.id} className="hover:bg-gray-50/80 transition-colors">
+                        <td className="p-3.5 font-black text-gray-950 flex items-center gap-1.5">
+                          <Receipt size={14} className="text-amber-500" /> Compra #{c.id}
+                        </td>
+                        <td className="p-3.5 text-gray-500 font-medium whitespace-nowrap">
+                          {c.fecha ? c.fecha.substring(0, 19) : 'Sin fecha'}
+                        </td>
+                        <td className="p-3.5 font-bold text-gray-600">
+                          👤 Empleado #{c.id_usuario || '1'}
+                        </td>
+                        <td className="p-3.5 font-black text-right text-gray-950 text-sm">
+                          ${Number(c.total || c.total_compra || 0).toLocaleString('es-CO')}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
