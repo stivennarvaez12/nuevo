@@ -16,6 +16,7 @@ export default function Compras() {
   const [vistaActiva, setVistaActiva] = useState('ingreso'); // 'ingreso' o 'historial'
   const [historialCompras, setHistorialCompras] = useState([]);
   const [loadingHistorial, setLoadingHistorial] = useState(false);
+  const [loadingDetalle, setLoadingDetalle] = useState(false);
   const [searchHistorial, setSearchHistorial] = useState("");
   const [fechaInicio, setFechaInicio] = useState("");
   const [fechaFin, setFechaFin] = useState("");
@@ -55,6 +56,36 @@ export default function Compras() {
       toast.error("No se pudo descargar el registro de compras pasadas");
     } finally {
       setLoadingHistorial(false);
+    }
+  };
+
+  // NUEVA FUNCIÓN: Obtener los productos detallados de una compra específica
+  const manejarVerDetalles = async (compra) => {
+    const idCompra = compra.id_compra || compra.id;
+    try {
+      setLoadingDetalle(true);
+      // Seteamos temporalmente la info básica para que reaccione la interfaz
+      setCompraSeleccionada(compra);
+
+      const res = await fetch(`https://nuevo-98vm.onrender.com/api/compras/${idCompra}`);
+      if (res.ok) {
+        const data = await res.json();
+        
+        // Si tu backend devuelve la compra con sus productos directamente o dentro de data
+        const compraDetallada = data.productos ? data : (data.data || compra);
+        
+        // Si los productos vienen en la raíz o en una propiedad específica, los acoplamos
+        setCompraSeleccionada({
+          ...compra,
+          productos: data.productos || data.items || (Array.isArray(data) ? data : [])
+        });
+      } else {
+        console.warn("El endpoint específico no devolvió datos, usando respaldo en caché local.");
+      }
+    } catch (error) {
+      console.error("Error al obtener detalles de la compra:", error);
+    } finally {
+      setLoadingDetalle(false);
     }
   };
 
@@ -460,7 +491,7 @@ export default function Compras() {
                             <td className="p-3.5 text-center">
                               <button 
                                 type="button" 
-                                onClick={() => setCompraSeleccionada(c)}
+                                onClick={() => manejarVerDetalles(c)}
                                 className="inline-flex items-center gap-1 bg-gray-100 hover:bg-gray-950 hover:text-white px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all"
                               >
                                 <Eye size={12} /> Detalles
@@ -493,25 +524,32 @@ export default function Compras() {
                     <span className="text-amber-400">${Number(compraSeleccionada.total || compraSeleccionada.total_compra || 0).toLocaleString('es-CO')}</span>
                   </div>
                   
-                  <div className="divide-y divide-gray-50 max-h-80 overflow-y-auto pr-1">
-                    {compraSeleccionada.productos && compraSeleccionada.productos.length > 0 ? (
-                      compraSeleccionada.productos.map((p, idx) => (
-                        <div key={idx} className="py-2.5 flex justify-between text-xs">
-                          <div>
-                            <p className="font-bold text-gray-900">{p.nombre || `Producto ID: ${p.id_producto}`}</p>
-                            <p className="text-[10px] text-gray-400 font-medium">Cant: <span className="text-gray-950 font-black">{p.cantidad} uds</span></p>
+                  {loadingDetalle ? (
+                    <div className="flex justify-center items-center py-10 text-gray-400 flex-col gap-2">
+                      <Loader2 className="animate-spin text-amber-500" size={20} />
+                      <span className="text-[11px] font-medium">Buscando artículos...</span>
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-gray-50 max-h-80 overflow-y-auto pr-1">
+                      {compraSeleccionada.productos && compraSeleccionada.productos.length > 0 ? (
+                        compraSeleccionada.productos.map((p, idx) => (
+                          <div key={idx} className="py-2.5 flex justify-between text-xs">
+                            <div className="min-w-0 flex-1pr-2">
+                              <p className="font-bold text-gray-900 truncate">{p.nombre || `Producto ID: ${p.id_producto || p.producto_id}`}</p>
+                              <p className="text-[10px] text-gray-400 font-medium">Cant: <span className="text-gray-950 font-black">{p.cantidad} uds</span></p>
+                            </div>
+                            <div className="text-right font-black text-gray-600 self-center shrink-0">
+                              {p.precio_costo ? `$${Number(p.precio_costo).toLocaleString('es-CO')}` : '—'}
+                            </div>
                           </div>
-                          <div className="text-right font-black text-gray-600 self-center">
-                            {p.precio_costo ? `$${Number(p.precio_costo).toLocaleString('es-CO')}` : '—'}
-                          </div>
+                        ))
+                      ) : (
+                        <div className="text-center py-8 text-gray-400 text-xs italic">
+                          No se encontraron artículos vinculados a esta orden.
                         </div>
-                      ))
-                    ) : (
-                      <div className="text-center py-8 text-gray-400 text-xs italic">
-                        Los detalles de artículos no están disponibles en este registro base de la API.
-                      </div>
-                    )}
-                  </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="text-center py-16 text-gray-300 text-xs font-medium border-2 border-dashed border-gray-100 rounded-2xl flex flex-col items-center gap-2">
