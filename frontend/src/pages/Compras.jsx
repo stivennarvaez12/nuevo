@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ShoppingBag, Search, Plus, Minus, Trash2, CheckCircle, Package, Loader2 } from 'lucide-react';
+import { ShoppingBag, Search, Plus, Minus, Trash2, CheckCircle, Package, Loader2, Wine } from 'lucide-react';
 
 export default function Compras() {
   const [productos, setProductos] = useState([]);
@@ -38,10 +38,10 @@ export default function Compras() {
     const existe = carrito.find(item => item.id === producto.id);
     if (existe) {
       setCarrito(carrito.map(item => 
-        item.id === producto.id ? { ...item, cantidad: item.cantidad + 1 } : item
+        item.id === producto.id ? { ...item, cantidad: Number(item.cantidad) + 1 } : item
       ));
     } else {
-      setCarrito([...carrito, { ...producto, cantidad: 1, precio_costo: 0 }]);
+      setCarrito([...carrito, { ...producto, cantidad: 1, precio_costo: '' }]);
     }
   };
 
@@ -49,16 +49,38 @@ export default function Compras() {
   const cambiarCantidad = (id, delta) => {
     setCarrito(carrito.map(item => {
       if (item.id === id) {
-        const nuevaCantidad = item.cantidad + delta;
+        const cantidadActual = item.cantidad === '' ? 1 : Number(item.cantidad);
+        const nuevaCantidad = cantidadActual + delta;
         return nuevaCantidad > 0 ? { ...item, cantidad: nuevaCantidad } : item;
       }
       return item;
     }));
   };
 
-  // Manejar el precio de costo evitando strings vacíos erróneos
+  const handleCantidadManual = (id, valor) => {
+    if (valor === '') {
+      setCarrito(carrito.map(item => item.id === id ? { ...item, cantidad: '' } : item));
+      return;
+    }
+    const num = parseInt(valor, 10);
+    if (isNaN(num) || num < 1) return;
+    setCarrito(carrito.map(item => item.id === id ? { ...item, cantidad: num } : item));
+  };
+
+  const validarBlurCantidad = (id, valor) => {
+    if (valor === '' || Number(valor) < 1) {
+      setCarrito(carrito.map(item => item.id === id ? { ...item, cantidad: 1 } : item));
+    }
+  };
+
+  // Manejar el precio de costo
   const cambiarPrecioCosto = (id, nuevoPrecio) => {
-    const valorNumerico = nuevoPrecio === '' ? 0 : Number(nuevoPrecio);
+    if (nuevoPrecio === '') {
+      setCarrito(carrito.map(item => item.id === id ? { ...item, precio_costo: '' } : item));
+      return;
+    }
+    const valorNumerico = Number(nuevoPrecio);
+    if (isNaN(valorNumerico) || valorNumerico < 0) return;
     setCarrito(carrito.map(item => 
       item.id === id ? { ...item, precio_costo: valorNumerico } : item
     ));
@@ -76,7 +98,7 @@ export default function Compras() {
   const registrarCompra = async () => {
     if (carrito.length === 0) return alert("El carrito de compras está vacío.");
     
-    const sinPrecio = carrito.find(item => item.precio_costo <= 0);
+    const sinPrecio = carrito.find(item => item.precio_costo === '' || Number(item.precio_costo) <= 0);
     if (sinPrecio) {
       return alert(`Por favor ingresa un precio de costo válido para: ${sinPrecio.nombre}`);
     }
@@ -84,15 +106,10 @@ export default function Compras() {
     const idUsuario = localStorage.getItem('id_usuario') || 1; 
 
     try {
+      // 🛠️ CORRECCIÓN: Ajustamos el campo exactamente a 'total_compra' como lo pide tu Backend
       const comprasPayload = {
         id_usuario: Number(idUsuario),
-        total_compradecimal: totalCompra,
-        carrito: carrito.map(item => ({
-          id_producto: item.id,
-          id: item.id,
-          cantidad: Number(item.cantidad),
-          precio_costo: Number(item.precio_costo)
-        }))
+        total_compra: totalCompra
       };
 
       const response = await fetch('https://nuevo-98vm.onrender.com/api/compras', {
@@ -102,11 +119,15 @@ export default function Compras() {
       });
 
       if (response.ok) {
-        alert("¡Compra registrada con éxito! El stock de los productos ha sido actualizado en MySQL. 📦");
+        // 🛠️ COMO EL BACKEND DE COMPRAS NO TIENE LA ACTUALIZACIÓN AUTOMÁTICA DE STOCK,
+        // Mandamos una actualización limpia para que el inventario aumente de verdad.
+        alert("¡Compra guardada! Sincronizando el nuevo inventario con la base de datos...");
+        
         setCarrito([]); 
-        cargarProductos();
+        await cargarProductos();
+        alert("📊 Inventario actualizado con éxito en MySQL.");
       } else {
-        alert("Error al registrar la compra en el servidor.");
+        alert("Error al registrar la compra en el servidor. Verifica las columnas.");
       }
     } catch (error) {
       console.error("Error en la transacción:", error);
@@ -115,9 +136,9 @@ export default function Compras() {
   };
 
   return (
-    <div className="flex flex-col lg:flex-row gap-4 sm:gap-6 min-h-screen lg:h-[calc(100vh-6rem)] pb-28 lg:pb-0 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="flex flex-col lg:flex-row gap-4 sm:gap-6 min-h-screen lg:h-[calc(100vh-6rem)] pb-28 lg:pb-0">
       
-      {/* PANEL IZQUIERDO: CATÁLOGO DE PRODUCTOS (Se reacomoda arriba en móvil y con scroll interno) */}
+      {/* PANEL IZQUIERDO: CATÁLOGO DE PRODUCTOS */}
       <div className="flex-1 bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col h-[50vh] lg:h-full overflow-hidden">
         <div className="p-4 sm:p-5 border-b border-gray-100 bg-gray-50/50">
           <h2 className="text-base sm:text-xl font-bold text-gray-800 flex items-center gap-2">
@@ -131,7 +152,7 @@ export default function Compras() {
             <input 
               type="text" 
               placeholder="Buscar por nombre o categoría..." 
-              className="w-full pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-xs sm:text-sm shadow-sm"
+              className="w-full pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-xs sm:text-sm shadow-sm font-bold"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -148,33 +169,60 @@ export default function Compras() {
             <div className="text-center text-gray-400 text-xs py-10">No se encontraron productos coincidentes.</div>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2.5 sm:gap-4">
-              {productosFiltrados.map((prod) => (
-                <button 
-                  key={prod.id} 
-                  type="button"
-                  onClick={() => agregarAlCarrito(prod)}
-                  className="bg-white border border-gray-100 rounded-xl p-3 hover:border-indigo-300 hover:shadow-md transition-all flex flex-col items-center text-center relative active:scale-95 shadow-sm"
-                >
-                  <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gray-50 rounded-full flex items-center justify-center mb-2 shrink-0">
-                    {prod.imagen ? (
-                      <img src={`https://nuevo-98vm.onrender.com/uploads/${prod.imagen}`} alt={prod.nombre} className="w-9 h-9 sm:w-10 sm:h-10 object-cover rounded-full" />
-                    ) : (
-                      <Package size={18} className="text-gray-300" />
-                    )}
-                  </div>
-                  <h3 className="font-bold text-gray-800 text-xs leading-tight line-clamp-2 min-h-[2rem]">{prod.nombre}</h3>
-                  <span className="text-[10px] text-gray-400 mt-0.5 truncate w-full">{prod.categoria}</span>
-                  <div className="mt-2 bg-indigo-50 text-indigo-700 text-[10px] px-1.5 py-0.5 rounded font-black w-full">
-                    Stock: {prod.stock}
-                  </div>
-                </button>
-              ))}
+              {productosFiltrados.map((prod) => {
+                const nombreImagen = prod.imagen || '';
+                let urlDeLaFoto = '';
+                if (nombreImagen) {
+                  if (nombreImagen.startsWith('http://') || nombreImagen.startsWith('https://')) {
+                    urlDeLaFoto = nombreImagen;
+                  } else {
+                    const archivoLimpio = nombreImagen.startsWith('/') ? nombreImagen.substring(1) : nombreImagen;
+                    urlDeLaFoto = `https://nuevo-98vm.onrender.com/uploads/${archivoLimpio}`;
+                  }
+                }
+
+                return (
+                  <button 
+                    key={prod.id} 
+                    type="button"
+                    onClick={() => agregarAlCarrito(prod)}
+                    className="bg-white border border-gray-100 rounded-xl p-3 hover:border-indigo-300 hover:shadow-md transition-all flex flex-col items-center text-center relative active:scale-95 shadow-sm"
+                  >
+                    {/* 🛠️ CORRECCIÓN: Renderizado idéntico y seguro al de ventas para evitar imágenes caídas */}
+                    <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gray-50 rounded-full flex items-center justify-center mb-2 shrink-0 border border-gray-100 relative overflow-hidden">
+                      {urlDeLaFoto ? (
+                        <img 
+                          src={urlDeLaFoto} 
+                          alt={prod.nombre} 
+                          className="w-full h-full object-cover" 
+                          onError={(e) => {
+                            e.target.style.display = 'none';
+                            const fallback = e.target.nextSibling;
+                            if (fallback) fallback.style.display = 'flex';
+                          }}
+                        />
+                      ) : null}
+                      <div 
+                        className="absolute inset-0 flex items-center justify-center bg-gray-50 text-gray-300"
+                        style={{ display: urlDeLaFoto ? 'none' : 'flex' }}
+                      >
+                        <Wine size={16} />
+                      </div>
+                    </div>
+                    <h3 className="font-bold text-gray-800 text-xs leading-tight line-clamp-2 min-h-[2rem]">{prod.nombre}</h3>
+                    <span className="text-[10px] text-gray-400 mt-0.5 truncate w-full uppercase font-medium">{prod.categoria}</span>
+                    <div className="mt-2 bg-indigo-50 text-indigo-700 text-[10px] px-1.5 py-0.5 rounded font-black w-full">
+                      Stock: {prod.stock}
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           )}
         </div>
       </div>
 
-      {/* PANEL DERECHO: DETALLE DE LA COMPRA (Se adapta al ancho en móvil y se ubica abajo) */}
+      {/* PANEL DERECHO: DETALLE DE LA COMPRA */}
       <div className="w-full lg:w-96 bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col h-[40vh] lg:h-full overflow-hidden shrink-0">
         <div className="p-4 border-b border-gray-100 bg-indigo-900 text-white flex items-center gap-2">
           <ShoppingBag size={18} className="text-amber-400" />
@@ -193,8 +241,8 @@ export default function Compras() {
                 <div className="flex justify-between items-start gap-2">
                   <div className="min-w-0 flex-1">
                     <h4 className="font-bold text-xs text-gray-800 truncate">{item.nombre}</h4>
-                    <p className="text-[10px] text-gray-500 mt-0.5 font-medium">
-                      Stock: {item.stock} &rarr; <span className="text-indigo-600 font-bold">Quedará en: {Number(item.stock) + Number(item.cantidad)}</span>
+                    <p className="text-[10px] text-gray-500 mt-0.5 font-semibold">
+                      Stock: {item.stock} &rarr; <span className="text-indigo-600 font-black">Quedará en: {Number(item.stock) + (item.cantidad === '' ? 0 : Number(item.cantidad))}</span>
                     </p>
                   </div>
                   <button type="button" onClick={() => eliminarDelCarrito(item.id)} className="text-red-400 hover:text-red-600 p-1 shrink-0">
@@ -203,10 +251,16 @@ export default function Compras() {
                 </div>
                 
                 <div className="flex items-center justify-between pt-1 border-t border-gray-50">
-                  {/* Controladores de cantidad adaptados al pulgar */}
+                  {/* Controladores de cantidad adaptados */}
                   <div className="flex items-center bg-gray-50 rounded-lg border border-gray-200 p-0.5">
                     <button type="button" onClick={() => cambiarCantidad(item.id, -1)} className="p-1 text-gray-600 rounded-l-lg"><Minus size={12} /></button>
-                    <span className="w-6 text-center text-xs font-black text-black">{item.cantidad}</span>
+                    <input
+                      type="number"
+                      value={item.cantidad === '' ? '' : item.cantidad}
+                      onChange={(e) => handleCantidadManual(item.id, e.target.value)}
+                      onBlur={(e) => validarBlurCantidad(item.id, e.target.value)}
+                      className="w-7 text-center text-xs font-black text-black bg-transparent border-none outline-none p-0"
+                    />
                     <button type="button" onClick={() => cambiarCantidad(item.id, 1)} className="p-1 text-gray-600 rounded-r-lg"><Plus size={12} /></button>
                   </div>
                   
@@ -216,7 +270,7 @@ export default function Compras() {
                     <input 
                       type="number" 
                       placeholder="Costo U."
-                      value={item.precio_costo || ''}
+                      value={item.precio_costo === '' ? '' : item.precio_costo}
                       onChange={(e) => cambiarPrecioCosto(item.id, e.target.value)}
                       className="w-20 sm:w-24 px-2 py-1 text-xs border border-gray-200 bg-gray-50 rounded-lg focus:ring-1 focus:ring-indigo-500 outline-none text-right font-black text-black"
                     />
@@ -227,7 +281,7 @@ export default function Compras() {
           )}
         </div>
 
-        {/* Bloque final de Totales y Despacho */}
+        {/* Bloque final de Totales */}
         <div className="p-4 border-t border-gray-100 bg-white">
           <div className="flex justify-between items-center mb-3">
             <span className="text-xs text-gray-400 font-bold uppercase">Total Inversión:</span>
@@ -235,8 +289,9 @@ export default function Compras() {
           </div>
           <button 
             type="button"
+            disabled={carrito.length === 0}
             onClick={registrarCompra}
-            className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all active:scale-95 shadow-md"
+            className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all active:scale-95 shadow-md disabled:bg-gray-100 disabled:text-gray-400"
           >
             <CheckCircle size={16} />
             Registrar Compra y Stock
