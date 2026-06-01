@@ -59,49 +59,81 @@ export default function Compras() {
     }
   };
 
-  // REGLA DE ORO IMPLEMENTADA: Desglose financiero inmediato y preventivo
+  // REGLA DE ORO MEJORADA: Desglose inmediato con cruce automático del catálogo local
   const manejarVerDetalles = async (compra) => {
     const idCompra = compra.id_compra || compra.id;
     try {
       setLoadingDetalle(true);
       setCompraSeleccionada(compra);
 
-      // Invocamos el endpoint de compras de la API
-      const res = await fetch(`https://nuevo-98vm.onrender.com/api/compras`);
-      if (res.ok) {
-        const data = await res.json();
-        
-        // Buscamos si la orden actual ya contiene un mapeo de ítems estructurado
-        const ordenEnHistorial = Array.isArray(data) ? data.find(c => (c.id_compra || c.id) === idCompra) : null;
-        
-        // Si el backend entrega los productos planos, los tomamos; si no, estructuramos el balance financiero
-        const productosDesglosados = compra.productos || (ordenEnHistorial && ordenEnHistorial.productos) || [
-          { 
-            nombre: `Licores Surtidos - Lote #${idCompra}`, 
-            cantidad: "1", 
-            precio_costo: compra.total || compra.total_compra || 0 
-          }
-        ];
+      let articulosCrudos = [];
 
-        setCompraSeleccionada({
-          ...compra,
-          productos: productosDesglosados
-        });
+      // 1. Intentamos consultar el endpoint específico por ID de compra
+      const resId = await fetch(`https://nuevo-98vm.onrender.com/api/compras/${idCompra}`);
+      if (resId.ok) {
+        const dataId = await resId.json();
+        const compraEspecifica = Array.isArray(dataId) ? dataId.find(c => (c.id_compra || c.id) === idCompra) : dataId;
+        
+        // Buscamos el arreglo de artículos bajo cualquier nombre común que use el backend
+        articulosCrudos = compraEspecifica?.productos || compraEspecifica?.detalles || compraEspecifica?.items || compraEspecifica?.carrito || [];
       } else {
-        // Respaldo de contingencia local para evitar pantallas en blanco (Failsafe)
-        setCompraSeleccionada({
-          ...compra,
-          productos: [
-            { nombre: `Reabastecimiento de Inventario #${idCompra}`, cantidad: "1", precio_costo: compra.total || compra.total_compra || 0 }
-          ]
-        });
+        // 2. Failsafe: Si falla por ID, buscamos en el listado general
+        const resGeneral = await fetch(`https://nuevo-98vm.onrender.com/api/compras`);
+        if (resGeneral.ok) {
+          const dataGeneral = await resGeneral.json();
+          const ordenEnHistorial = Array.isArray(dataGeneral) ? dataGeneral.find(c => (c.id_compra || c.id) === idCompra) : null;
+          articulosCrudos = ordenEnHistorial?.productos || ordenEnHistorial?.detalles || ordenEnHistorial?.items || ordenEnHistorial?.carrito || [];
+        }
       }
-    } catch (error) {
-      console.error("Error al obtener detalles de la compra:", error);
-      // Fallback si el servidor de Render está lento o caído
+
+      // 3. Si la API sigue sin responder los artículos, usamos lo que traía localmente la fila de la tabla
+      if (!articulosCrudos || articulosCrudos.length === 0) {
+        articulosCrudos = compra.productos || compra.detalles || compra.items || compra.carrito || [];
+      }
+
+      // 4. CRUCE AUDITOR DE CATÁLOGO: Mapeamos los artículos y resolvemos sus nombres reales usando el estado local
+      const productosDesglosados = articulosCrudos.map(art => {
+        const idProd = art.id_producto || art.producto_id || art.id;
+        // Buscamos el producto en nuestro catálogo previamente cargado
+        const productoEnCatalogo = productos.find(p => Number(p.id) === Number(idProd));
+
+        return {
+          ...art,
+          nombre: art.nombre || art.nombre_producto || productoEnCatalogo?.nombre || `Producto ID: #${idProd}`,
+          cantidad: art.cantidad || 1,
+          precio_costo: art.precio_costo || art.precio || 0
+        };
+      });
+
+      // 5. Contingencia final para evitar paneles vacíos
+      const resultadoFinal = productosDesglosados.length > 0 ? productosDesglosados : [
+        { 
+          nombre: `Licores Surtidos - Lote #${idCompra}`, 
+          cantidad: "1", 
+          precio_costo: compra.total || compra.total_compra || 0 
+        }
+      ];
+
       setCompraSeleccionada({
         ...compra,
-        productos: [
+        productos: resultadoFinal
+      });
+
+    } catch (error) {
+      console.error("Error al obtener detalles de la compra:", error);
+      // Fallback en caso de caída total de red, intentando rescatar nombres localmente
+      const fallbackLocal = (compra.productos || compra.detalles || []).map(art => {
+        const idProd = art.id_producto || art.producto_id || art.id;
+        const deCatalogo = productos.find(p => Number(p.id) === Number(idProd));
+        return {
+          ...art,
+          nombre: art.nombre || art.nombre_producto || deCatalogo?.nombre || `Producto ID: #${idProd}`
+        };
+      });
+
+      setCompraSeleccionada({
+        ...compra,
+        productos: fallbackLocal.length > 0 ? fallbackLocal : [
           { nombre: `Carga de Mercancía General #${idCompra}`, cantidad: "1", precio_costo: compra.total || compra.total_compra || 0 }
         ]
       });
@@ -274,7 +306,7 @@ export default function Compras() {
     }
   };
 
-  // REGLA DE ORO ASEGURADA: Se corrigió la llamada al setter del hook de estado
+  // REGLA DE ORO IMPLEMENTADA: Se corrigió la llamada al setter para que limpie filtros correctamente
   const limpiarFiltrosFecha = () => {
     setFechaInicio("");
     setFechaFin("");
@@ -557,7 +589,7 @@ export default function Compras() {
                         compraSeleccionada.productos.map((p, idx) => (
                           <div key={idx} className="py-2.5 flex justify-between text-xs">
                             <div className="min-w-0 flex-1 pr-2">
-                              <p className="font-bold text-gray-900 truncate">{p.nombre || `Producto ID: ${p.id_producto || p.producto_id}`}</p>
+                              <p className="font-bold text-gray-900 truncate">{p.nombre}</p>
                               <p className="text-[10px] text-gray-400 font-medium">Cant: <span className="text-gray-950 font-black">{p.cantidad} uds</span></p>
                             </div>
                             <div className="text-right font-black text-gray-600 self-center shrink-0">
