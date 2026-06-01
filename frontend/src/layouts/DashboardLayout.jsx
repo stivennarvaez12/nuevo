@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   Wine, Users, ShieldCheck, 
   UserCircle, ShoppingCart, TrendingDown, LayoutDashboard, LogOut,
@@ -8,9 +8,21 @@ import {
 // 🔥 REGLA DE ORO: Importamos el contexto para saber el estado de la caja en tiempo real
 import { useCaja } from '../contexto/CajaContext';
 
+// 📦 IMPORTACIÓN EN PARALELO: Traemos todas las páginas aquí para mantenerlas vivas
+import DashboardHome from '../pages/DashboardHome';
+import Licores from '../pages/Licores'; 
+import Ventas from '../pages/Ventas';
+import Compras from '../pages/Compras'; 
+import Gastos from '../pages/Gastos';
+import Caja from '../pages/Caja';
+import Clientes from '../pages/Clientes'; 
+import Usuarios from '../pages/Usuarios';
+import Roles from '../pages/Roles';
+
 export default function DashboardLayout() {
   const location = useLocation();
   const navigate = useNavigate();
+  const currentPath = location.pathname;
   
   // Extraemos el estado de la caja ('abierto' o 'cerrado')
   const { cajaEstado } = useCaja(); 
@@ -96,7 +108,7 @@ export default function DashboardLayout() {
         <nav className="flex-1 overflow-y-auto py-4 custom-scrollbar">
           <ul className="space-y-1 px-3">
             {menuItems.map((item) => {
-              const isActive = location.pathname === item.path;
+              const isActive = currentPath === item.path;
               return (
                 <li key={item.path}>
                   <Link
@@ -137,10 +149,47 @@ export default function DashboardLayout() {
         />
       )}
 
-      {/* 4. CONTENEDOR DE CONTENIDO PRINCIPAL */}
+      {/* 4. CONTENEDOR DE CONTENIDO PRINCIPAL PERSISTENTE */}
+      {/* Reemplazamos <Outlet /> para renderizar condicionalmente usando clases CSS de visibilidad */}
       <main className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8 bg-gray-50">
         <div className="max-w-7xl mx-auto">
-          <Outlet />
+          
+          <div className={currentPath === '/dashboard' || currentPath === '/dashboard/' ? 'block animate-in fade-in duration-150' : 'hidden'}>
+            <DashboardHome />
+          </div>
+
+          <div className={currentPath === '/dashboard/licores' ? 'block animate-in fade-in duration-150' : 'hidden'}>
+            <Licores />
+          </div>
+
+          <div className={currentPath === '/dashboard/ventas' ? 'block animate-in fade-in duration-150' : 'hidden'}>
+            <Ventas />
+          </div>
+
+          <div className={currentPath === '/dashboard/compras' ? 'block animate-in fade-in duration-150' : 'hidden'}>
+            <Compras />
+          </div>
+
+          <div className={currentPath === '/dashboard/gastos' ? 'block animate-in fade-in duration-150' : 'hidden'}>
+            <Gastos />
+          </div>
+
+          <div className={currentPath === '/dashboard/caja' ? 'block animate-in fade-in duration-150' : 'hidden'}>
+            <Caja />
+          </div>
+
+          <div className={currentPath === '/dashboard/clientes' ? 'block animate-in fade-in duration-150' : 'hidden'}>
+            <Clientes />
+          </div>
+
+          <div className={currentPath === '/dashboard/usuarios' ? 'block animate-in fade-in duration-150' : 'hidden'}>
+            <Usuarios />
+          </div>
+
+          <div className={currentPath === '/dashboard/roles' ? 'block animate-in fade-in duration-150' : 'hidden'}>
+            <Roles />
+          </div>
+
         </div>
       </main>
     </div>
