@@ -167,7 +167,6 @@ app.delete('/api/productos/:id', (req, res) => {
 // 3. VENTAS Y DETALLES (REGLA DE ORO: INGRESOS 💰)
 // ==========================================
 app.post('/api/ventas', (req, res) => {
-    // BLINDAJE DE CAJA: Validar turno abierto
     db.query("SELECT id_turno FROM control_caja WHERE estado = 'abierto' LIMIT 1", (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
         if (rows.length === 0) {
@@ -246,7 +245,6 @@ app.get('/api/gastos', (req, res) => {
 });
 
 app.post('/api/gastos', (req, res) => {
-    // BLINDAJE DE CAJA: Validar turno abierto
     db.query("SELECT id_turno FROM control_caja WHERE estado = 'abierto' LIMIT 1", (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
         if (rows.length === 0) {
@@ -300,8 +298,25 @@ app.get('/api/compras', (req, res) => {
     });
 });
 
+// NUEVO ENDPOINT ADICIONADO: Extrae el desglose exacto con los licores e incrementos
+app.get('/api/compras/:id/detalle', (req, res) => {
+    const { id } = req.params;
+    const sql = `
+        SELECT 
+            dc.cantidad, 
+            dc.precio_costo, 
+            p.nombre_producto AS nombre
+        FROM detalle_compras dc
+        JOIN productos p ON dc.id_producto = p.id_producto
+        WHERE dc.id_compra = ?
+    `;
+    db.query(sql, [id], (err, data) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(data);
+    });
+});
+
 app.post('/api/compras', (req, res) => {
-    // BLINDAJE DE CAJA: Validar turno abierto
     db.query("SELECT id_turno FROM control_caja WHERE estado = 'abierto' LIMIT 1", (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
         if (rows.length === 0) {
@@ -394,7 +409,7 @@ app.get('/api/caja/estado', (req, res) => {
 
         Promise.all([qVentas, qCompras, qGastos]).then(([ventas, compras, gastos]) => {
             const base = Number(cajaActiva.monto_inicial);
-            const esperado = base + ventas - compras - gastos; // REGLA DE ORO EN TURNO
+            const esperado = base + ventas - compras - gastos; 
 
             res.json({
                 estado: "abierto",
@@ -446,7 +461,7 @@ app.post('/api/caja/cerrar', (req, res) => {
             const base = Number(caja.monto_inicial);
             const real = Number(monto_final_real || 0);
             
-            const esperado = base + ventas - compras - gastos; // REGLA DE ORO APLICADA
+            const esperado = base + ventas - compras - gastos; 
             const diferencia = real - esperado;
 
             const sqlCierre = `

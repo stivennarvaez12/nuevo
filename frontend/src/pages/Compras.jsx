@@ -274,10 +274,11 @@ export default function Compras() {
     }
   };
 
+  // REGLA DE ORO ASEGURADA: Se corrigió la llamada al setter del hook de estado
   const limpiarFiltrosFecha = () => {
     setFechaInicio("");
     setFechaFin("");
-    searchHistorial("");
+    setSearchHistorial(""); 
   };
 
   return (
