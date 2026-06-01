@@ -59,84 +59,32 @@ export default function Compras() {
     }
   };
 
-  // REGLA DE ORO MEJORADA: Desglose inmediato con cruce automático del catálogo local
+  // REGLA DE ORO MEJORADA: Consulta directa al endpoint de detalles corregido
   const manejarVerDetalles = async (compra) => {
     const idCompra = compra.id_compra || compra.id;
     try {
       setLoadingDetalle(true);
       setCompraSeleccionada(compra);
 
-      let articulosCrudos = [];
-
-      // 1. Intentamos consultar el endpoint específico por ID de compra
-      const resId = await fetch(`https://nuevo-98vm.onrender.com/api/compras/${idCompra}`);
-      if (resId.ok) {
-        const dataId = await resId.json();
-        const compraEspecifica = Array.isArray(dataId) ? dataId.find(c => (c.id_compra || c.id) === idCompra) : dataId;
+      // Consultamos la ruta CORRECTA que espera tu backend de Express
+      const res = await fetch(`https://nuevo-98vm.onrender.com/api/compras/${idCompra}/detalle`);
+      
+      if (res.ok) {
+        const detallesDeBD = await res.json();
         
-        // Buscamos el arreglo de artículos bajo cualquier nombre común que use el backend
-        articulosCrudos = compraEspecifica?.productos || compraEspecifica?.detalles || compraEspecifica?.items || compraEspecifica?.carrito || [];
+        // Tu backend ya entrega el formato exacto { cantidad, precio_costo, nombre } listo para pintar
+        setCompraSeleccionada(prev => ({
+          ...prev,
+          productos: Array.isArray(detallesDeBD) ? detallesDeBD : []
+        }));
       } else {
-        // 2. Failsafe: Si falla por ID, buscamos en el listado general
-        const resGeneral = await fetch(`https://nuevo-98vm.onrender.com/api/compras`);
-        if (resGeneral.ok) {
-          const dataGeneral = await resGeneral.json();
-          const ordenEnHistorial = Array.isArray(dataGeneral) ? dataGeneral.find(c => (c.id_compra || c.id) === idCompra) : null;
-          articulosCrudos = ordenEnHistorial?.productos || ordenEnHistorial?.detalles || ordenEnHistorial?.items || ordenEnHistorial?.carrito || [];
-        }
+        toast.error(`Error 404: No se encontró el desglose de la compra #${idCompra}`);
+        setCompraSeleccionada(prev => ({ ...prev, productos: [] }));
       }
-
-      // 3. Si la API sigue sin responder los artículos, usamos lo que traía localmente la fila de la tabla
-      if (!articulosCrudos || articulosCrudos.length === 0) {
-        articulosCrudos = compra.productos || compra.detalles || compra.items || compra.carrito || [];
-      }
-
-      // 4. CRUCE AUDITOR DE CATÁLOGO: Mapeamos los artículos y resolvemos sus nombres reales usando el estado local
-      const productosDesglosados = articulosCrudos.map(art => {
-        const idProd = art.id_producto || art.producto_id || art.id;
-        // Buscamos el producto en nuestro catálogo previamente cargado
-        const productoEnCatalogo = productos.find(p => Number(p.id) === Number(idProd));
-
-        return {
-          ...art,
-          nombre: art.nombre || art.nombre_producto || productoEnCatalogo?.nombre || `Producto ID: #${idProd}`,
-          cantidad: art.cantidad || 1,
-          precio_costo: art.precio_costo || art.precio || 0
-        };
-      });
-
-      // 5. Contingencia final para evitar paneles vacíos
-      const resultadoFinal = productosDesglosados.length > 0 ? productosDesglosados : [
-        { 
-          nombre: `Licores Surtidos - Lote #${idCompra}`, 
-          cantidad: "1", 
-          precio_costo: compra.total || compra.total_compra || 0 
-        }
-      ];
-
-      setCompraSeleccionada({
-        ...compra,
-        productos: resultadoFinal
-      });
-
     } catch (error) {
       console.error("Error al obtener detalles de la compra:", error);
-      // Fallback en caso de caída total de red, intentando rescatar nombres localmente
-      const fallbackLocal = (compra.productos || compra.detalles || []).map(art => {
-        const idProd = art.id_producto || art.producto_id || art.id;
-        const deCatalogo = productos.find(p => Number(p.id) === Number(idProd));
-        return {
-          ...art,
-          nombre: art.nombre || art.nombre_producto || deCatalogo?.nombre || `Producto ID: #${idProd}`
-        };
-      });
-
-      setCompraSeleccionada({
-        ...compra,
-        productos: fallbackLocal.length > 0 ? fallbackLocal : [
-          { nombre: `Carga de Mercancía General #${idCompra}`, cantidad: "1", precio_costo: compra.total || compra.total_compra || 0 }
-        ]
-      });
+      toast.error("Error de conexión con el servidor.");
+      setCompraSeleccionada(prev => ({ ...prev, productos: [] }));
     } finally {
       setLoadingDetalle(false);
     }
@@ -152,7 +100,7 @@ export default function Compras() {
     }
   }, [vistaActiva]);
 
-  // Formateador visual para la tabla de historial (evita el formato ISO crudo con 'T' y 'Z')
+  // Formateador visual para la tabla de historial
   const formatearFechaTabla = (fechaRaw) => {
     if (!fechaRaw) return "Sin fecha";
     
@@ -306,7 +254,6 @@ export default function Compras() {
     }
   };
 
-  // REGLA DE ORO IMPLEMENTADA: Se corrigió la llamada al setter para que limpie filtros correctamente
   const limpiarFiltrosFecha = () => {
     setFechaInicio("");
     setFechaFin("");
@@ -425,7 +372,7 @@ export default function Compras() {
                         <h4 className="font-bold text-xs text-gray-900 truncate">{item.nombre}</h4>
                         <p className="text-[10px] text-gray-500 mt-1 font-medium bg-gray-50 inline-block px-1.5 py-0.5 rounded border border-gray-100">
                           Stock: {item.stock} <span className="mx-1 text-gray-300">→</span> 
-                          <span className="text-emerald-600 font-black">Nuevo: {Number(item.stock) + (item.cantidad === '' ? 0 : Number(item.cantidad))}</span>
+                          <span className="text-emerald-600 font-black">Nuevo: {NewNumber(item.stock) + (item.cantidad === '' ? 0 : Number(item.cantidad))}</span>
                         </p>
                       </div>
                       <button type="button" onClick={() => eliminarDelCarrito(item.id)} className="text-gray-300 hover:text-red-500 p-1 transition-colors"><Trash2 size={16} /></button>
@@ -541,7 +488,7 @@ export default function Compras() {
                             </td>
                             
                             <td className="p-3.5 font-bold text-gray-600">👤 ID #{c.id_usuario || '1'}</td>
-                            <td className="p-3.5 font-black text-right text-gray-950">${Number(c.total || c.total_compra || 0).toLocaleString('es-CO')}</td>
+                            <td className="p-3.5 font-black text-right text-gray-950">${NewNumber(c.total || c.total_compra || 0).toLocaleString('es-CO')}</td>
                             <td className="p-3.5 text-center">
                               <button 
                                 type="button" 
@@ -575,7 +522,7 @@ export default function Compras() {
                 <div className="space-y-3 animate-in fade-in duration-200">
                   <div className="bg-gray-950 text-white p-3 rounded-xl flex justify-between text-xs font-bold">
                     <span>Orden #{compraSeleccionada.id_compra || compraSeleccionada.id}</span>
-                    <span className="text-amber-400">${Number(compraSeleccionada.total || compraSeleccionada.total_compra || 0).toLocaleString('es-CO')}</span>
+                    <span className="text-amber-400">${NewNumber(compraSeleccionada.total || compraSeleccionada.total_compra || 0).toLocaleString('es-CO')}</span>
                   </div>
                   
                   {loadingDetalle ? (
@@ -593,7 +540,7 @@ export default function Compras() {
                               <p className="text-[10px] text-gray-400 font-medium">Cant: <span className="text-gray-950 font-black">{p.cantidad} uds</span></p>
                             </div>
                             <div className="text-right font-black text-gray-600 self-center shrink-0">
-                              {p.precio_costo ? `$${Number(p.precio_costo).toLocaleString('es-CO')}` : '—'}
+                              {p.precio_costo ? `$${NewNumber(p.precio_costo).toLocaleString('es-CO')}` : '—'}
                             </div>
                           </div>
                         ))
@@ -613,7 +560,6 @@ export default function Compras() {
               )}
             </div>
           </div>
-
         </div>
       )}
     </div>
