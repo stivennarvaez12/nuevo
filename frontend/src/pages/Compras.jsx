@@ -59,26 +59,23 @@ export default function Compras() {
     }
   };
 
-  // REGLA DE ORO MEJORADA: Consulta directa al endpoint de detalles corregido
+  // Desglose inmediato desde el endpoint específico
   const manejarVerDetalles = async (compra) => {
     const idCompra = compra.id_compra || compra.id;
     try {
       setLoadingDetalle(true);
       setCompraSeleccionada(compra);
 
-      // Consultamos la ruta CORRECTA que espera tu backend de Express
       const res = await fetch(`https://nuevo-98vm.onrender.com/api/compras/${idCompra}/detalle`);
       
       if (res.ok) {
         const detallesDeBD = await res.json();
-        
-        // Tu backend ya entrega el formato exacto { cantidad, precio_costo, nombre } listo para pintar
         setCompraSeleccionada(prev => ({
           ...prev,
           productos: Array.isArray(detallesDeBD) ? detallesDeBD : []
         }));
       } else {
-        toast.error(`Error 404: No se encontró el desglose de la compra #${idCompra}`);
+        toast.error(`Error: No se encontró el desglose de la compra #${idCompra}`);
         setCompraSeleccionada(prev => ({ ...prev, productos: [] }));
       }
     } catch (error) {
@@ -372,7 +369,7 @@ export default function Compras() {
                         <h4 className="font-bold text-xs text-gray-900 truncate">{item.nombre}</h4>
                         <p className="text-[10px] text-gray-500 mt-1 font-medium bg-gray-50 inline-block px-1.5 py-0.5 rounded border border-gray-100">
                           Stock: {item.stock} <span className="mx-1 text-gray-300">→</span> 
-                          <span className="text-emerald-600 font-black">Nuevo: {NewNumber(item.stock) + (item.cantidad === '' ? 0 : Number(item.cantidad))}</span>
+                          <span className="text-emerald-600 font-black">Nuevo: {Number(item.stock) + (item.cantidad === '' ? 0 : Number(item.cantidad))}</span>
                         </p>
                       </div>
                       <button type="button" onClick={() => eliminarDelCarrito(item.id)} className="text-gray-300 hover:text-red-500 p-1 transition-colors"><Trash2 size={16} /></button>
@@ -488,7 +485,7 @@ export default function Compras() {
                             </td>
                             
                             <td className="p-3.5 font-bold text-gray-600">👤 ID #{c.id_usuario || '1'}</td>
-                            <td className="p-3.5 font-black text-right text-gray-950">${NewNumber(c.total || c.total_compra || 0).toLocaleString('es-CO')}</td>
+                            <td className="p-3.5 font-black text-right text-gray-950">${Number(c.total || c.total_compra || 0).toLocaleString('es-CO')}</td>
                             <td className="p-3.5 text-center">
                               <button 
                                 type="button" 
@@ -522,7 +519,7 @@ export default function Compras() {
                 <div className="space-y-3 animate-in fade-in duration-200">
                   <div className="bg-gray-950 text-white p-3 rounded-xl flex justify-between text-xs font-bold">
                     <span>Orden #{compraSeleccionada.id_compra || compraSeleccionada.id}</span>
-                    <span className="text-amber-400">${NewNumber(compraSeleccionada.total || compraSeleccionada.total_compra || 0).toLocaleString('es-CO')}</span>
+                    <span className="text-amber-400">${Number(compraSeleccionada.total || compraSeleccionada.total_compra || 0).toLocaleString('es-CO')}</span>
                   </div>
                   
                   {loadingDetalle ? (
@@ -540,7 +537,7 @@ export default function Compras() {
                               <p className="text-[10px] text-gray-400 font-medium">Cant: <span className="text-gray-950 font-black">{p.cantidad} uds</span></p>
                             </div>
                             <div className="text-right font-black text-gray-600 self-center shrink-0">
-                              {p.precio_costo ? `$${NewNumber(p.precio_costo).toLocaleString('es-CO')}` : '—'}
+                              {p.precio_costo ? `$${Number(p.precio_costo).toLocaleString('es-CO')}` : '—'}
                             </div>
                           </div>
                         ))
