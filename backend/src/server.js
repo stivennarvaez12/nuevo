@@ -159,30 +159,31 @@ app.post('/api/productos', upload.single('imagen'), (req, res) => {
     });
 });
 
-// 🛠️ PUT: CORREGIDO PARA PRODUCTOS YA VENDIDOS (PROTEGE LLAVES REFERENCIALES)
+// 🛠️ PUT: ENDPOINT DEFINITIVO Y TRANSPARENTE
 app.put('/api/productos/:id', upload.single('imagen'), (req, res) => {
     const { id } = req.params;
     
-    // Normalizamos las entradas para priorizar lo que envía el Frontend de licores de forma limpia
+    // 1. Limpieza absoluta de datos (evita que MySQL devuelva errores por datos "null" o "NaN")
     const nombre = req.body.nombre || req.body.nombre_producto;
-    const categoria = req.body.categoria;
-    const stock = parseInt(req.body.stock) ?? 0;
+    const categoria = req.body.categoria || 'General';
     const descripcion = req.body.descripcion || null;
-
-    // Sanatización estricta del precio: Evaluamos primero 'precio' que es el campo estándar de nuestro formulario
+    
     let precioRaw = req.body.precio || req.body.precio_venta || 0;
     if (typeof precioRaw === 'string') {
-        precioRaw = precioRaw.replace(/[^0-9.]/g, ''); // Quitamos caracteres extraños y dejamos solo números/puntos
+        precioRaw = precioRaw.replace(/[^0-9.]/g, ''); // Deja solo números y puntos
     }
     const precio = parseFloat(precioRaw) || 0;
-
-    // Evaluamos si subieron una foto nueva
+    
+    const stock = parseInt(req.body.stock) || 0;
     const imagen = req.file ? req.file.filename : null;
+
+    if (!nombre) {
+        return res.status(400).json({ error: "El nombre del producto es obligatorio." });
+    }
 
     let sql = "";
     let params = [];
 
-    // NOTA DE CONTROL: La condición WHERE apunta estrictamente a 'id_producto' y no se alteran campos clave.
     if (imagen) {
         sql = "UPDATE productos SET nombre_producto = ?, categoria = ?, precio = ?, stock = ?, imagen = ?, descripcion = ? WHERE id_producto = ?";
         params = [nombre, categoria, precio, stock, imagen, descripcion, id];
@@ -193,10 +194,11 @@ app.put('/api/productos/:id', upload.single('imagen'), (req, res) => {
 
     db.query(sql, params, (err, result) => {
         if (err) {
-            console.error("❌ Error en MySQL al editar:", err.message);
-            return res.status(500).json({ error: "La base de datos rechazó la modificación por integridad de ventas: " + err.message });
+            // 2. AHORA SÍ VEREMOS EL ERROR REAL DE MYSQL
+            console.error("❌ ERROR REAL DE MYSQL:", err.message);
+            return res.status(500).json({ error: err.message });
         }
-        res.status(200).json({ message: "¡Licor actualizado con éxito! 🍾" });
+        res.status(200).json({ message: "Producto modificado con éxito." });
     });
 });
 
