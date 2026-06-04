@@ -136,8 +136,10 @@ app.post('/api/roles', (req, res) => {
 });
 
 // ==========================================
-// 2. PRODUCTOS (INVENTARIO)
+// 2. PRODUCTOS (INVENTARIO) - REPARACIÓN REAL CONTRA LLAVES FORÁNEAS 🍾
 // ==========================================
+
+// 🔄 GET: Obtener todos los productos
 app.get('/api/productos', (req, res) => {
     const sql = "SELECT id_producto AS id, nombre_producto AS nombre, categoria, precio, stock, imagen, descripcion FROM productos";
     db.query(sql, (err, data) => {
@@ -146,6 +148,7 @@ app.get('/api/productos', (req, res) => {
     });
 });
 
+// ➕ POST: Crear un producto individualmente
 app.post('/api/productos', upload.single('imagen'), (req, res) => {
     const { nombre, categoria, precio, stock, descripcion } = req.body;
     const imagen = req.file ? req.file.filename : null;
@@ -156,10 +159,128 @@ app.post('/api/productos', upload.single('imagen'), (req, res) => {
     });
 });
 
+// 🛠️ PUT: CORREGIDO PARA PRODUCTOS YA VENDIDOS (PROTEGE LLAVES REFERENCIALES)
+app.put('/api/productos/:id', upload.single('imagen'), (req, res) => {
+    const { id } = req.params;
+    
+    // Normalizamos las entradas para priorizar lo que envía el Frontend de licores de forma limpia
+    const nombre = req.body.nombre || req.body.nombre_producto;
+    const categoria = req.body.categoria;
+    const stock = parseInt(req.body.stock) ?? 0;
+    const descripcion = req.body.descripcion || null;
+
+    // Sanatización estricta del precio: Evaluamos primero 'precio' que es el campo estándar de nuestro formulario
+    let precioRaw = req.body.precio || req.body.precio_venta || 0;
+    if (typeof precioRaw === 'string') {
+        precioRaw = precioRaw.replace(/[^0-9.]/g, ''); // Quitamos caracteres extraños y dejamos solo números/puntos
+    }
+    const precio = parseFloat(precioRaw) || 0;
+
+    // Evaluamos si subieron una foto nueva
+    const imagen = req.file ? req.file.filename : null;
+
+    let sql = "";
+    let params = [];
+
+    // NOTA DE CONTROL: La condición WHERE apunta estrictamente a 'id_producto' y no se alteran campos clave.
+    if (imagen) {
+        sql = "UPDATE productos SET nombre_producto = ?, categoria = ?, precio = ?, stock = ?, imagen = ?, descripcion = ? WHERE id_producto = ?";
+        params = [nombre, categoria, precio, stock, imagen, descripcion, id];
+    } else {
+        sql = "UPDATE productos SET nombre_producto = ?, categoria = ?, precio = ?, stock = ?, descripcion = ? WHERE id_producto = ?";
+        params = [nombre, categoria, precio, stock, descripcion, id];
+    }
+
+    db.query(sql, params, (err, result) => {
+        if (err) {
+            console.error("❌ Error en MySQL al editar:", err.message);
+            return res.status(500).json({ error: "La base de datos rechazó la modificación por integridad de ventas: " + err.message });
+        }
+        res.status(200).json({ message: "¡Licor actualizado con éxito! 🍾" });
+    });
+});
+
+// 🗑️ DELETE: Eliminar un producto de forma independiente
 app.delete('/api/productos/:id', (req, res) => {
     db.query("DELETE FROM productos WHERE id_producto = ?", [req.params.id], (err) => {
-        if (err) return res.status(500).json(err);
-        res.json({ message: "Producto eliminado" });
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ message: "Producto eliminado con éxito" });
+    });
+});
+
+// 🚀 POST MASIVO INTELIGENTE: Validación por software (Ideal para tus datos con duplicados de prueba)
+app.post('/api/productos/importar-masivo', async (req, res) => {
+    const productos = req.body;
+
+    if (!Array.isArray(productos) || productos.length === 0) {
+        return res.status(400).json({ error: "El formato de datos no es válido o está vacío." });
+    }
+
+    console.time("⏱️ Tiempo de Inserción Masiva");
+
+    // Traemos lo que ya está en la BD para comparar en memoria y no generar errores de llaves
+    db.query("SELECT id_producto, nombre_producto, stock FROM productos", async (err, resultadosBD) => {
+        if (err) return res.status(500).json({ error: err.message });
+
+        // Mapeamos los productos existentes usando letras minúsculas para evitar fallos por mayúsculas
+        const mapaProductos = {};
+        resultadosBD.forEach(p => {
+            if (p.nombre_producto) {
+                mapaProductos[p.nombre_producto.toLowerCase().trim()] = p;
+            }
+        });
+
+        let insertados = 0;
+        let actualizados = 0;
+
+        try {
+            const promesas = productos.map(p => {
+                const nombreExcel = (p.nombre || p.nombre_producto || "Sin nombre").toString().trim();
+                const nombreKey = nombreExcel.toLowerCase();
+                const categoria = p.categoria || "General";
+                const precio = parseFloat(p.precio) || 0;
+                const stockNuevo = parseInt(p.stock) || 0;
+                const descripcion = p.descripcion || null;
+
+                if (mapaProductos[nombreKey]) {
+                    // 🔄 YA EXISTE: Sumamos stock y pisamos el precio
+                    actualizados++;
+                    const idExistente = mapaProductos[nombreKey].id_producto;
+                    return new Promise((resolve, reject) => {
+                        db.query(
+                            "UPDATE productos SET stock = stock + ?, precio = ?, categoria = ? WHERE id_producto = ?",
+                            [stockNuevo, precio, categoria, idExistente],
+                            (err) => err ? reject(err) : resolve()
+                        );
+                    });
+                } else {
+                    // ➕ NO EXISTE: Hacemos una inserción limpia de la fila
+                    insertados++;
+                    return new Promise((resolve, reject) => {
+                        db.query(
+                            "INSERT INTO productos (nombre_producto, categoria, precio, stock, imagen, descripcion) VALUES (?, ?, ?, ?, ?, ?)",
+                            [nombreExcel, categoria, precio, stockNuevo, p.imagen || null, descripcion],
+                            (err) => err ? reject(err) : resolve()
+                        );
+                    });
+                }
+            });
+
+            await Promise.all(promesas);
+            console.timeEnd("⏱️ Tiempo de Inserción Masiva");
+
+            res.status(201).json({ 
+                message: "Importación masiva completada con éxito", 
+                registrosInsertados: insertados,
+                registrosActualizados: actualizados,
+                totalAfectados: insertados + actualizados
+            });
+
+        } catch (error) {
+            console.timeEnd("⏱️ Tiempo de Inserción Masiva");
+            console.error("❌ Error procesando el lote:", error.message);
+            return res.status(500).json({ error: error.message });
+        }
     });
 });
 
@@ -188,7 +309,7 @@ app.post('/api/ventas', (req, res) => {
                         if (err) reject(err);
                         db.query("UPDATE productos SET stock = stock - ? WHERE id_producto = ?", [item.cantidad, item.id], (err) => {
                             if (err) reject(err);
-                            resolve();
+                            else resolve();
                         });
                     });
                 });
@@ -297,8 +418,7 @@ app.get('/api/compras', (req, res) => {
         res.json(data);
     });
 });
-
-// NUEVO ENDPOINT ADICIONADO: Extrae el desglose exacto con los licores e incrementos
+ 
 app.get('/api/compras/:id/detalle', (req, res) => {
     const { id } = req.params;
     const sql = `
