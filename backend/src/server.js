@@ -184,6 +184,7 @@ app.put('/api/productos/:id', upload.single('imagen'), (req, res) => {
     let sql = "";
     let params = [];
 
+  
     if (imagen) {
         sql = "UPDATE productos SET nombre_producto = ?, categoria = ?, precio = ?, stock = ?, imagen = ?, descripcion = ? WHERE id_producto = ?";
         params = [nombre, categoria, precio, stock, imagen, descripcion, id];

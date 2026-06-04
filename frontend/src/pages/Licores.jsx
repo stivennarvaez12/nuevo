@@ -14,7 +14,7 @@ export default function Licores() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modoEdicion, setModoEdicion] = useState(false);
   const [idEditar, setIdEditar] = useState(null);
-   const [nuevoLicor, setNuevoLicor] = useState({
+  const [nuevoLicor, setNuevoLicor] = useState({
     nombre: '', categoria: '', precio: '', stock: ''
   });
 
@@ -51,7 +51,7 @@ export default function Licores() {
     }
     
     const dataMapeada = licores.map(l => ({
-      "Nombre": l.nombre,
+      "Nombre": l.nombre || l.nombre_producto,
       "Categoría": l.categoria,
       "Precio Venta": l.precio || l.precio_venta || 0,
       "Stock": l.stock
@@ -86,17 +86,40 @@ export default function Licores() {
           return;
         }
 
-        const productosLote = dataJson.map(item => ({
-          nombre: item.Nombre || item.nombre || "Sin nombre",
-          categoria: item.Categoría || item.categoria || "Bebidas",
-          precio: item.Precio || item.precio_venta || item.precio || 0, 
-          stock: item.Stock || item.stock || 0,
-          imagen: null,
-          descripcion: null
-        }));
+        // 🔥 NUEVA LÓGICA BLINDADA PARA LIMPIAR PRECIOS Y STOCK
+        const productosLote = dataJson.map(fila => {
+          // 1. Limpieza de precios (Quita $, puntos y texto)
+          let precioRaw = fila["Precio Venta"] || fila.Precio || fila.precio || fila.precio_venta || fila.Valor || 0;
+          if (precioRaw && typeof precioRaw === 'string') {
+            precioRaw = precioRaw.replace(/[^0-9]/g, ''); 
+          }
+          const precioNumerico = parseFloat(precioRaw) || 0;
+
+          // 2. Limpieza de stock
+          let stockRaw = fila["Stock Actual"] || fila.Stock || fila.stock || 0;
+          if (stockRaw && typeof stockRaw === 'string') {
+            stockRaw = stockRaw.replace(/[^0-9]/g, '');
+          }
+          const stockNumerico = parseInt(stockRaw) || 0;
+
+          return {
+            nombre: fila.Nombre || fila.nombre || fila["Nombre Producto"] || "Sin nombre",
+            categoria: fila.Categoría || fila.categoria || "Bebidas",
+            precio: precioNumerico,
+            stock: stockNumerico,
+            imagen: null,
+            descripcion: null
+          };
+        }).filter(p => p.nombre !== "Sin nombre");
 
         toast.dismiss(lecturaToast);
-        const subiendoToast = toast.loading(`Insertando ${productosLote.length} registros en MySQL...`);
+        
+        if (productosLote.length === 0) {
+            toast.error("No se encontraron productos válidos.");
+            return;
+        }
+
+        const subiendoToast = toast.loading(`Insertando/Actualizando ${productosLote.length} registros en MySQL...`);
 
         const response = await fetch('https://nuevo-98vm.onrender.com/api/productos/importar-masivo', {
           method: 'POST',
@@ -110,7 +133,7 @@ export default function Licores() {
         if (response.ok) {
           const t1 = performance.now();
           const latenciaTotal = ((t1 - t0) / 1000).toFixed(2);
-          toast.success(`¡Se insertaron ${resultado.registrosInsertados || productosLote.length} registros con éxito! 🚀 (Tiempo Frontend: ${latenciaTotal}s)`);
+          toast.success(`¡Proceso completado con éxito! 🚀 (Tiempo: ${latenciaTotal}s)\nRevisa tu inventario.`);
           fetchLicores(); 
         } else {
           toast.error(resultado.error || "Error en el servidor al procesar el lote.");
