@@ -69,7 +69,7 @@ export default function Licores() {
     if (!file) return;
 
     const t0 = performance.now(); 
-    const lecturaToast = toast.loading("Procesando archivo Excel...");
+    const lecturaToast = toast.loading("Procesando archivo Excel/CSV...");
     const reader = new FileReader();
 
     reader.onload = async (evt) => {
@@ -82,7 +82,7 @@ export default function Licores() {
 
         if (dataJson.length === 0) {
           toast.dismiss(lecturaToast);
-          toast.error("El archivo de Excel está vacío");
+          toast.error("El archivo está vacío");
           return;
         }
 
@@ -141,7 +141,7 @@ export default function Licores() {
       } catch (err) {
         toast.dismiss(lecturaToast);
         console.error(err);
-        toast.error("Error al leer la estructura del archivo Excel");
+        toast.error("Error al leer la estructura del archivo");
       }
     };
 
@@ -298,7 +298,8 @@ export default function Licores() {
           {/* 🔵 BOTÓN IMPORTAR LOTE */}
           <label className="w-full sm:w-auto bg-blue-600 text-white px-4 py-3 rounded-xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 hover:bg-blue-700 transition-all shadow-md active:scale-95 cursor-pointer text-center justify-center">
             <Upload size={18} /> Importar Lote
-            <input type="file" accept=".xlsx, .xls" onChange={importarDesdeExcel} className="hidden" />
+            {/* AQUÍ ESTÁ EL CAMBIO PARA PERMITIR .CSV 👇 */}
+            <input type="file" accept=".xlsx, .xls, .csv" onChange={importarDesdeExcel} className="hidden" />
           </label>
 
           {/* ⚫ BOTÓN INDIVIDUAL ORIGINAL */}
